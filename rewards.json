@@ -1,0 +1,11 @@
+{
+  "rewards": [
+    {
+      "id": "test-reward-1",
+      "title": "Free test reward",
+      "description": "The online reward trigger works!",
+      "active": true,
+      "claim_code": "TEST123"
+    }
+  ]
+}
