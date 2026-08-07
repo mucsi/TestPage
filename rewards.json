@@ -6,7 +6,7 @@
       "description": "The online reward trigger works!",
       "active": false,
       "claim_code": "TEST123"
-    }
+    },
 	{
       "id": "test-reward-2",
       "title": "Free test reward2",
