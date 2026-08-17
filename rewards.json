@@ -13,41 +13,6 @@
       "description": "The online reward trigger works!",
       "active": false,
       "claim_code": "TEST1234"
-    },
-	{
-      "id": "test-reward-3",
-      "title": "Free test reward3",
-      "description": "The online reward trigger works!",
-      "active": true,
-      "claim_code": "Nop"
-    },
-	{
-      "id": "test-reward-4",
-      "title": "Free test reward3",
-      "description": "The online reward trigger works!",
-      "active": true,
-      "claim_code": "Nop"
-    },
-	{
-      "id": "test-reward-5",
-      "title": "Free test reward3",
-      "description": "The online reward trigger works!",
-      "active": true,
-      "claim_code": "Nop"
-    },
-	{
-      "id": "test-reward-6",
-      "title": "Free test reward3",
-      "description": "The online reward trigger works!",
-      "active": true,
-      "claim_code": "Nop"
-    },
-	{
-      "id": "test-reward-7",
-      "title": "Free test reward3",
-      "description": "The online reward trigger works!",
-      "active": true,
-      "claim_code": "Nop"
     }
   ]
 }
