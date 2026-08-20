@@ -2,6 +2,7 @@
   "rewards": [
     {
       "id": "test-reward-1",
+      "type": "reward",
       "title": "Free test reward",
       "description": "The online reward trigger works!",
       "active": true,
@@ -9,6 +10,7 @@
     },
 	{
       "id": "test-reward-2",
+      "type": "reward",
       "title": "Free test reward2",
       "description": "The online reward trigger works!",
       "active": false,
@@ -16,6 +18,7 @@
     },
     {
       "id": "expo-quest-live-test-20260820-1950",
+      "type": "promotion",
       "title": "Live reward unlocked!",
       "description": "Online rewards are connected. Welcome, explorer!",
       "active": true
