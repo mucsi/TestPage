@@ -13,6 +13,12 @@
       "description": "The online reward trigger works!",
       "active": false,
       "claim_code": "TEST1234"
+    },
+    {
+      "id": "expo-quest-live-test-20260820-1950",
+      "title": "Live reward unlocked!",
+      "description": "Online rewards are connected. Welcome, explorer!",
+      "active": true
     }
   ]
 }
