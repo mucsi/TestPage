@@ -1,5 +1,6 @@
 {
   "rewards": [
+	{"id": "reward-red-meeple", "active": false},
     {
       "id": "test-reward-1",
       "type": "reward",
