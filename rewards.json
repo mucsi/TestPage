@@ -29,7 +29,7 @@
       "stars_required": 20
     },
     {
-      "id": "test-reward-1",
+      "id": "nyaloka",
       "type": "reward",
       "title": "Free test reward",
       "description": "Kapsz egy nyalókát!",
@@ -53,12 +53,12 @@
       "type": "promotion",
       "title": "Live reward unlocked!",
       "description": "Online rewards are connected. Welcome, explorer!",
-      "active": flase,
+      "active": false,
       "status": "live"
     }
     ,
     {
-      "id": "expo-quest-live-test-20260820-1951",
+      "id": "dicseret",
       "type": "promotion",
       "title": "Gyere az irodaba",
       "description": "Gyere az irodába! Ha te leszel az első, kapsz egy dicséretet!",
