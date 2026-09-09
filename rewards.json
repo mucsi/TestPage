@@ -24,28 +24,28 @@
     {
       "id": "reward-red-meeple",
       "title": "Red Meeple",
-      "active": true,
+      "active": false,
       "star_cost": 5,
       "stars_required": 5
     },
     {
       "id": "reward-laser-dice",
       "title": "Laser Dice",
-      "active": true,
+      "active": false,
       "star_cost": 10,
       "stars_required": 10
     },
     {
       "id": "reward-promo-cards",
       "title": "Promo Cards",
-      "active": true,
+      "active": false,
       "star_cost": 15,
       "stars_required": 15
     },
     {
       "id": "reward-explorer-pin",
       "title": "Explorer Pin",
-      "active": true,
+      "active": false,
       "star_cost": 20,
       "stars_required": 20
     },
@@ -54,7 +54,7 @@
       "type": "reward",
       "title": "Nyalóka",
       "description": "Kapsz egy nyalókát!",
-      "active": true,
+      "active": false,
       "status": "live",
       "star_cost": 5,
       "repeatable": false
@@ -82,7 +82,7 @@
       "type": "promotion",
       "title": "Gyere az irodaba",
       "description": "Gyere az irodába! Ha te leszel az első, kapsz egy dicséretet!",
-      "active": true,
+      "active": false,
       "status": "live"
     }
   ]
