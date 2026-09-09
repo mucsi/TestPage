@@ -1,4 +1,6 @@
 {
+  "CurrentExpoID": "expo-001",
+  "ExpoResetInProgress": false,
   "rewards": [
     {
       "id": "handshake",
