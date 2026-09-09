@@ -31,9 +31,9 @@
     {
       "id": "nyaloka",
       "type": "reward",
-      "title": "Free test reward",
+      "title": "Nyalóka",
       "description": "Kapsz egy nyalókát!",
-      "active": false,
+      "active": true,
       "status": "live",
       "star_cost": 5,
       "repeatable": false
