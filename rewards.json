@@ -1,6 +1,27 @@
 {
   "rewards": [
     {
+      "id": "handshake",
+      "title": "Kézfogás",
+      "active": true,
+      "star_cost": 5,
+      "stars_required": 5
+    },
+    {
+      "id": "coffee",
+      "title": "Egy finom kávé",
+      "active": true,
+      "star_cost": 10,
+      "stars_required": 10
+    },
+    {
+      "id": "drink",
+      "title": "Egy finom üdítő",
+      "active": true,
+      "star_cost": 15,
+      "stars_required": 15
+    },
+    {
       "id": "reward-red-meeple",
       "title": "Red Meeple",
       "active": true,
@@ -55,8 +76,7 @@
       "description": "Online rewards are connected. Welcome, explorer!",
       "active": false,
       "status": "live"
-    }
-    ,
+    },
     {
       "id": "dicseret",
       "type": "promotion",
