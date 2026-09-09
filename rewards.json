@@ -1,28 +1,60 @@
 {
   "rewards": [
-	{"id": "reward-red-meeple", "active": true},
+    {
+      "id": "reward-red-meeple",
+      "title": "Red Meeple",
+      "active": true,
+      "star_cost": 5,
+      "stars_required": 5
+    },
+    {
+      "id": "reward-laser-dice",
+      "title": "Laser Dice",
+      "active": true,
+      "star_cost": 10,
+      "stars_required": 10
+    },
+    {
+      "id": "reward-promo-cards",
+      "title": "Promo Cards",
+      "active": true,
+      "star_cost": 15,
+      "stars_required": 15
+    },
+    {
+      "id": "reward-explorer-pin",
+      "title": "Explorer Pin",
+      "active": true,
+      "star_cost": 20,
+      "stars_required": 20
+    },
     {
       "id": "test-reward-1",
       "type": "reward",
       "title": "Free test reward",
       "description": "The online reward trigger works!",
       "active": true,
-      "claim_code": "TEST123"
+      "status": "live",
+      "star_cost": 0,
+      "repeatable": false
     },
-	{
+    {
       "id": "test-reward-2",
       "type": "reward",
       "title": "Free test reward2",
       "description": "The online reward trigger works!",
       "active": false,
-      "claim_code": "TEST1234"
+      "status": "live",
+      "star_cost": 0,
+      "repeatable": false
     },
     {
       "id": "expo-quest-live-test-20260820-1950",
       "type": "promotion",
       "title": "Live reward unlocked!",
       "description": "Online rewards are connected. Welcome, explorer!",
-      "active": true
+      "active": true,
+      "status": "live"
     }
   ]
 }
