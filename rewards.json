@@ -1,6 +1,6 @@
 {
-  "CurrentExpoID": "expo-2",
-  "ExpoResetInProgress": true,
+  "CurrentExpoID": "testExpo",
+  "ExpoResetInProgress": false,
   "rewards": [
     {
       "id": "handshake",
@@ -88,13 +88,9 @@
       "status": "live"
     }
   ],
-  "LastExpoResetOperation": "64fa2145-5e75-40d3-97a8-00f2cf756d23",
+  "LastExpoResetOperation": "2b060930-9c19-4166-9b00-904fe1da2f05",
   "RetiredExpoIDs": [
-    "expo-001"
-  ],
-  "ExpoResetOperation": {
-    "id": "2b060930-9c19-4166-9b00-904fe1da2f05",
-    "from": "expo-2",
-    "to": "testExpo"
-  }
+    "expo-001",
+    "expo-2"
+  ]
 }
