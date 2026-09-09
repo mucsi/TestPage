@@ -1,6 +1,6 @@
 {
   "CurrentExpoID": "expo-001",
-  "ExpoResetInProgress": false,
+  "ExpoResetInProgress": true,
   "rewards": [
     {
       "id": "handshake",
@@ -87,5 +87,10 @@
       "active": true,
       "status": "live"
     }
-  ]
+  ],
+  "ExpoResetOperation": {
+    "id": "64fa2145-5e75-40d3-97a8-00f2cf756d23",
+    "from": "expo-001",
+    "to": "expo-2"
+  }
 }
