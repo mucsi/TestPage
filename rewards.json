@@ -57,7 +57,7 @@
       "type": "reward",
       "title": "Nyalóka",
       "description": "Kapsz egy nyalókát!",
-      "active": true,
+      "active": false,
       "status": "live",
       "star_cost": 5,
       "repeatable": false
@@ -88,7 +88,7 @@
       "type": "promotion",
       "title": "Gyere az irodaba",
       "description": "Gyere az irodába! Ha te leszel az első, kapsz egy dicséretet!",
-      "active": true,
+      "active": false,
       "status": "live"
     }
   ],
