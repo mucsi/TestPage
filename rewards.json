@@ -53,6 +53,7 @@
     },
     {
       "id": "nyaloka2",
+      "background_color": "#16803C",
       "type": "reward",
       "title": "Nyalóka",
       "description": "Kapsz egy nyalókát!",
@@ -63,6 +64,7 @@
     },
     {
       "id": "test-reward-2",
+      "background_color": "#16803C",
       "type": "reward",
       "title": "Free test reward2",
       "description": "The online reward trigger works!",
@@ -73,6 +75,7 @@
     },
     {
       "id": "expo-quest-live-test-20260820-1950",
+      "background_color": "#D91C2B",
       "type": "promotion",
       "title": "Live reward unlocked!",
       "description": "Online rewards are connected. Welcome, explorer!",
@@ -81,6 +84,7 @@
     },
     {
       "id": "dicseret2",
+      "background_color": "#D91C2B",
       "type": "promotion",
       "title": "Gyere az irodaba",
       "description": "Gyere az irodába! Ha te leszel az első, kapsz egy dicséretet!",
