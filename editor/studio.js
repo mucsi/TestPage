@@ -8,11 +8,11 @@ const guard=fn=>async(...args)=>{try{await fn(...args);}catch(e){say(e.message||
 const title=r=>r.title||r.name||r.id;
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;}
 function button(text,fn,cls='secondary'){const b=el('button',cls,text);b.type='button';b.onclick=guard(fn);return b;}
-function dirty(){changed=true;reviewed='';$('draft-state').textContent='Unsaved draft';$('confirm-publish').disabled=true;}
+function dirty(){changed=true;reviewed='';$('draft-state').textContent='Unsaved draft';}
 function source(){const repo=$('repo').value.trim(),branch=$('branch').value.trim();if(!/^[\w.-]+\/[\w.-]+$/.test(repo)||!branch)throw Error('Enter a valid repository and branch.');return {repo,branch};}
 function assertShape(c){if(!c||C.groups.some(g=>!Array.isArray(c[g])||c[g].some(r=>!r||typeof r!=='object'||Array.isArray(r)))||!c.images||typeof c.images!=='object'||Array.isArray(c.images))throw Error('The catalog has invalid collections. The current draft was kept.');}
 function install(c){c=C.migrate(c,base?.rewards||[]);assertShape(c);content=c;group='quests';selection=content.quests[0]?.id||null;previewQuest=selection;previewChallenge=content.challenges[0]?.id;previewReward=content.reward_levels[0]?.id;renderAll();}
-function lock(value){busy=value;document.querySelector('main').inert=value;for(const id of ['publish','reload','import','repo','branch'])$(id).disabled=value;}
+function lock(value){busy=value;document.querySelector('main').inert=value;for(const id of ['review-button','confirm-publish','reload','import','repo','branch'])$(id).disabled=value;}
 async function load(initial=false){
   if(busy)return;if(changed&&!confirm('Replace your unsaved draft with online content? Save a draft first if needed.'))return;
   const src=source();lock(true);say('Downloading the latest content from GitHub…');
@@ -107,7 +107,7 @@ function renderEditor(){
     if(row.start_at){const d=new Date(row.start_at);if(Number.isFinite(d.getTime()))date.value=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);}
     select.onchange=()=>{row.publish_mode=select.value;dateLabel.hidden=select.value!=='later';if(select.value==='now'){delete row.start_at;date.value='';}dirty();renderBoard();renderPreview();};
     date.oninput=()=>{if(date.value)row.start_at=new Date(date.value).toISOString().replace('.000Z','Z');else delete row.start_at;row.publish_mode='later';dirty();renderPreview();};
-    label.append(select);dateLabel.append(date);card.append(label,dateLabel,el('p','muted','Use Review & publish to save this choice. Publish now makes it available immediately; Publish later makes it available from your chosen time. Phones display it on their next refresh—not as closed-app push.'));
+    label.append(select);dateLabel.append(date);card.append(label,dateLabel,el('p','muted','Use Publish in the header to save this choice. Review lets you check it first without uploading. Publish now makes it available immediately; Publish later makes it available from your chosen time. Phones display it on their next refresh—not as closed-app push.'));
     if(row.end_at)card.append(el('p','muted','Existing expiry: '+new Date(row.end_at).toLocaleString()),button('Remove expiry',()=>{delete row.end_at;dirty();renderAll();}));
   }
   if(group==='partners'){
@@ -191,17 +191,22 @@ $('preview-screen').onchange=renderPreview;$('preview-width').onchange=renderPre
 $('preview-progress').onchange=renderPreview;
 $('export').onclick=guard(()=>{if(!content)throw Error('No draft to save yet.');const a=el('a'),url=URL.createObjectURL(new Blob([JSON.stringify(content,null,2)],{type:'application/json'}));a.href=url;a.download='expo-catalog-draft.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);say('Draft backup downloaded. Online content has not changed.');});
 $('import').onchange=guard(async()=>{const file=$('import').files[0];if(!file)return;if(file.size>8*1024*1024)throw Error('Draft exceeds 8 MB.');if(changed&&!confirm('Replace your unsaved draft with this backup?'))return;const next=C.normalize(JSON.parse(await file.text()));assertShape(next);install(next);dirty();$('connection').close();say('Backup restored to your draft. Review before publishing.');});
-$('publish').onclick=guard(async()=>{
+$('review-button').onclick=guard(async()=>{
   if(!content||busy)return;if(!base||!loaded)throw Error('Load the current online feed in GitHub settings before publishing.');
   if(source().repo!==loaded.repo||source().branch!==loaded.branch)throw Error('Repository changed. Save your draft, then reload the new repository.');
-  if(ExpoAuth.local)throw Error('Local preview cannot publish. Sign out and use your organizer login.');
   lock(true);try{compactImages();await validate();const feed=C.merge(base,content);if(new TextEncoder().encode(JSON.stringify(feed)).length>8*1024*1024)throw Error('The complete feed exceeds 8 MB.');reviewed=JSON.stringify(content);$('review-summary').replaceChildren(...C.groups.map(g=>el('p','',`${names[g]}: ${content[g].length} (${content[g].filter(r=>r.enabled!==false).length} visible)`)));$('confirm-publish').disabled=false;$('review').showModal();}finally{lock(false);}
 });
 $('confirm-publish').onclick=guard(async()=>{
-  if(busy||reviewed!==JSON.stringify(content))throw Error('The draft changed. Review it again.');
+  if(busy||!content)return;
+  if(ExpoAuth.local)throw Error('Local preview cannot publish. Sign out and use your organizer login.');
+  if(!base||!loaded)throw Error('Load the current online feed before publishing.');
   const src=source();if(src.repo!==loaded.repo||src.branch!==loaded.branch)throw Error('Repository changed. Reload before publishing.');
   lock(true);$('confirm-publish').disabled=true;try{
+    compactImages();await validate();
     const feed=C.merge(base,content);
+    if(new TextEncoder().encode(JSON.stringify(feed)).length>8*1024*1024)throw Error('The complete feed exceeds 8 MB.');
+    if(!confirm('Publish this draft to the live app? Your content will be public.'))return;
+    say('Uploading content to GitHub…');
     const result=await ExpoAuth.request({action:'publish',sha,content});
     base=feed;sha=result.sha;changed=false;reviewed='';$('draft-state').textContent='Published';$('review').close();say('Published to GitHub. Phones receive the content after GitHub Pages updates and the app refreshes.');
   }catch(e){$('review').close();throw e;}finally{lock(false);}
