@@ -95,11 +95,25 @@ async function upload(file,row){
 function renderEditor(){
   const box=$('editor');box.replaceChildren();const row=selected();if(!row){box.append(el('div','empty','Choose an item to edit, or add a new one.'));return;}
   const card=el('div','editor-card'),heading=el('div','section-title');heading.append(el('h2','',`Edit ${singular[group]}`));card.append(heading);
-  field(card,row,['quests','partners'].includes(group)?'name':'title','Name');field(card,row,'enabled','Visible in the app','checkbox');
+  field(card,row,['quests','partners'].includes(group)?'name':'title','Name');
+  const enabled=field(card,row,'enabled',group==='notifications'?'Enable notification':'Visible in the app','checkbox');
+  if(group==='notifications'){
+    enabled.checked=row.enabled!==false&&row.publication_status!=='draft';
+    enabled.oninput=()=>{row.enabled=enabled.checked;row.publication_status='live';dirty();renderBoard();renderPreview();};
+    const label=el('label','','When to publish'),select=el('select');
+    select.add(new Option('Publish now','now'));select.add(new Option('Publish later at a set time','later'));
+    select.value=row.publish_mode||(row.start_at?'later':'now');
+    const dateLabel=el('label','','Publish date and time (your local time)'),date=el('input');date.type='datetime-local';dateLabel.hidden=select.value!=='later';
+    if(row.start_at){const d=new Date(row.start_at);if(Number.isFinite(d.getTime()))date.value=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);}
+    select.onchange=()=>{row.publish_mode=select.value;dateLabel.hidden=select.value!=='later';if(select.value==='now'){delete row.start_at;date.value='';}dirty();renderBoard();renderPreview();};
+    date.oninput=()=>{if(date.value)row.start_at=new Date(date.value).toISOString().replace('.000Z','Z');else delete row.start_at;row.publish_mode='later';dirty();renderPreview();};
+    label.append(select);dateLabel.append(date);card.append(label,dateLabel,el('p','muted','Use Review & publish to save this choice. Publish now makes it available immediately; Publish later makes it available from your chosen time. Phones display it on their next refresh—not as closed-app push.'));
+    if(row.end_at)card.append(el('p','muted','Existing expiry: '+new Date(row.end_at).toLocaleString()),button('Remove expiry',()=>{delete row.end_at;dirty();renderAll();}));
+  }
   if(group==='partners'){
     const label=el('label','','Banner format'),select=el('select');select.add(new Option('Logo + text · square 1:1 logo','logo_text'));select.add(new Option('Full image · 5:3 banner','full_image'));select.value=row.banner_type||'logo_text';select.onchange=()=>{row.banner_type=select.value;row.artwork='';dirty();renderAll();say('Format changed. Upload an image in the new aspect ratio; existing text is kept for switching back.');};label.append(select);card.append(label,el('p','muted',row.banner_type==='full_image'?'Upload a complete 5:3 banner. No text is overlaid.':'Upload a square logo and add your headline and message.'));
   }
-  if(['reward_levels','partners','notifications'].includes(group)){
+  if(['reward_levels','partners'].includes(group)){
     const label=el('label','','Publication'),select=el('select');select.add(new Option('Live when published','live'));select.add(new Option('Draft / hidden','draft'));select.value=row.publication_status||'live';select.onchange=()=>{row.publication_status=select.value;dirty();renderBoard();renderPreview();};label.append(select);card.append(label);
     for(const [key,name] of [['start_at','Starts'],['end_at','Ends']]){
       const wrap=el('label','',name+' (your local time)'),input=el('input');input.type='datetime-local';

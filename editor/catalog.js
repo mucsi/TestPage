@@ -58,6 +58,8 @@
         for(const key of ['start_at','end_at'])if(row[key]&&(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(row[key])||!Number.isFinite(Date.parse(row[key]))||new Date(row[key]).toISOString().replace('.000Z','Z')!==row[key]))errors.push(`${row.id}: ${key} must be a UTC date`);
         if(row.start_at&&row.end_at&&Date.parse(row.end_at)<=Date.parse(row.start_at))errors.push(`${row.id}: end must be after start`);
         if(group==='notifications'&&(typeof row.description!=='string'||!row.description.trim()))errors.push(`${row.id}: notification message required`);
+        if(group==='notifications'&&row.publish_mode==='later'&&!row.start_at)errors.push(`${row.id}: choose a date and time for Publish later`);
+        if(group==='notifications'&&row.publish_mode&&!['now','later'].includes(row.publish_mode))errors.push(`${row.id}: invalid publishing choice`);
         if(row.claim_identity&&row.claim_identity!=='online:'+row.id)errors.push(`${row.id}: invalid legacy claim identity`);
         if(row.artwork && (typeof row.artwork!=='string'||!row.artwork.startsWith('asset://')||!c.images[row.artwork.slice(8)])) errors.push(`${row.id}: upload its artwork first`);
         if(row.color && !/^#[0-9a-f]{6}$/i.test(row.color)) errors.push(`${row.id}: invalid colour`);

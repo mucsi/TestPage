@@ -17,7 +17,7 @@
     if(g==='quests'){Object.assign(row,{analytics_key:freeKey(c,g),name:source?source.name+' (copy)':'New quest'});if(!source)Object.assign(row,{description:'',challenge_ids:[],required_stars:1,completion_bonus_stars:0,perfection_bonus_stars:0});}
     if(g==='reward_levels'&&!source)Object.assign(row,{title:'New reward',description:'',stars_required:1,star_cost:1,repeatable:false});
     if(g==='partners'&&!source)Object.assign(row,{name:'New promotion',banner_title:'New promotion',banner_message:'',show_banner:true,color:'#ed1c24'});
-    if(g==='notifications'&&!source)Object.assign(row,{title:'New announcement',description:'',publication_status:'draft'});
+    if(g==='notifications'&&!source)Object.assign(row,{title:'New announcement',description:'',publication_status:'live',publish_mode:'now'});
     c[g].push(row);return row;
   }
   const api={assign,unassign,create,freeKey};if(typeof module!=='undefined')module.exports=api;root.ExpoEditor=api;
