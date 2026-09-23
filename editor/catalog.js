@@ -1,6 +1,6 @@
 /* Pure validation shared by the browser editor and offline Node tests. */
 (function(root) {
-  const groups = ['quests','challenges','reward_levels','partners'];
+  const groups = ['quests','challenges','reward_levels','partners','notifications'];
   const clone = x => JSON.parse(JSON.stringify(x));
   function normalize(raw) {
     const c = clone(raw.content || raw);
@@ -13,7 +13,30 @@
       c.quests = p.quests || [];
       delete c.challenge_pool;
     }
-    c.schema_version=1; c.images ||= {}; c.partners ||= [];
+    c.schema_version=1; c.images ||= {}; c.partners ||= []; c.notifications ||= [];
+    return c;
+  }
+  function migrate(raw,legacy=[]) {
+    const c=normalize(raw);
+    if(c.unified_content===true)return c;
+    for(const old of legacy){
+      const existing=c.reward_levels.find(r=>r.id===old.id);
+      if(existing){
+        for(const key of ['star_cost','stars_required','start_at','end_at','repeatable','claim_qr'])if(key in old)existing[key]=old[key];
+        if('active' in old)existing.enabled=old.active;
+        continue;
+      }
+      const promo=['promotion','promo','banner'].includes(old.type);
+      const target=promo?c.partners:c.reward_levels;
+      if(target.some(r=>r.id===old.id))throw Error('Conflicting legacy ID: '+old.id);
+      const row={...clone(old),enabled:old.active===true,publication_status:old.status==='live'?'live':'draft',notify:true,artwork:'',legacy_notification_id:old.id};
+      if(promo)Object.assign(row,{name:old.title||old.id,banner_title:old.title||'',banner_message:old.description||'',banner_type:'logo_text',show_banner:true,color:old.background_color||'#ed1c24'});
+      else Object.assign(row,{title:old.title||old.id,stars_required:old.stars_required??1,star_cost:old.star_cost??0,claim_identity:'online:'+old.id,requires_stars:old.stars_required!==undefined});
+      if(!old.type&&!old.status)delete row.claim_identity;
+      delete row.type;delete row.active;delete row.status;
+      target.push(row);
+    }
+    c.unified_content=true;
     return c;
   }
   function validate(c) {
@@ -21,6 +44,7 @@
     const integer=(v,min,max=1000000)=>Number.isSafeInteger(v)&&v>=min&&v<=max;
     if (!c || c.schema_version!==1 || !c.images || typeof c.images!=='object' || Array.isArray(c.images)) return ['Invalid catalog version/images'];
     for(const group of groups) {
+      if(group==='notifications'&&c[group]===undefined)continue;
       if(!Array.isArray(c[group]) || c[group].length>200) {errors.push(`${group}: expected at most 200 entries`);continue;}
       ids[group]=new Map();
       for(const row of c[group]) {
@@ -29,7 +53,12 @@
         ids[group].set(row.id,row);
         const title = ['quests','partners'].includes(group)?row.name:row.title;
         if(typeof title!=='string'||!title.trim()) errors.push(`${row.id}: title/name required`);
-        for(const flag of ['enabled','repeatable','show_banner']) if(flag in row && typeof row[flag]!=='boolean') errors.push(`${row.id}: ${flag} must be Boolean`);
+        for(const flag of ['enabled','repeatable','show_banner','notify','requires_stars']) if(flag in row && typeof row[flag]!=='boolean') errors.push(`${row.id}: ${flag} must be Boolean`);
+        if(row.publication_status&&!['draft','live'].includes(row.publication_status))errors.push(`${row.id}: invalid publication status`);
+        for(const key of ['start_at','end_at'])if(row[key]&&(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(row[key])||!Number.isFinite(Date.parse(row[key]))||new Date(row[key]).toISOString().replace('.000Z','Z')!==row[key]))errors.push(`${row.id}: ${key} must be a UTC date`);
+        if(row.start_at&&row.end_at&&Date.parse(row.end_at)<=Date.parse(row.start_at))errors.push(`${row.id}: end must be after start`);
+        if(group==='notifications'&&(typeof row.description!=='string'||!row.description.trim()))errors.push(`${row.id}: notification message required`);
+        if(row.claim_identity&&row.claim_identity!=='online:'+row.id)errors.push(`${row.id}: invalid legacy claim identity`);
         if(row.artwork && (typeof row.artwork!=='string'||!row.artwork.startsWith('asset://')||!c.images[row.artwork.slice(8)])) errors.push(`${row.id}: upload its artwork first`);
         if(row.color && !/^#[0-9a-f]{6}$/i.test(row.color)) errors.push(`${row.id}: invalid colour`);
       }
@@ -70,7 +99,7 @@
     if(base.ExpoResetInProgress) throw new Error('An expo reset is in progress. Publishing is blocked.');
     return {...clone(base),content:clone(content)};
   }
-  const api={groups,normalize,validate,merge};
+  const api={groups,normalize,migrate,validate,merge};
   if(typeof module!=='undefined') module.exports=api;
   root.ExpoCatalog=api;
 })(globalThis);
