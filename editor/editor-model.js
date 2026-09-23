@@ -13,7 +13,7 @@
   function create(c,g,id,source=null){
     if(c[g].some(r=>r.id===id))throw Error('ID already exists');
     const row=source?clone(source):{enabled:true,artwork:''};row.id=id;
-    if(g==='challenges'){Object.assign(row,{analytics_key:freeKey(c,g),title:source?source.title+' (copy)':'New challenge',value:'QR-'+id,legacy_keys:[]});if(!source)Object.assign(row,{description:'',stars:1});}
+    if(g==='challenges'){Object.assign(row,{analytics_key:freeKey(c,g),title:source?source.title+' (copy)':'New challenge',value:'https://expoquest-links.pages.dev/c/'+encodeURIComponent(id),legacy_keys:[],legacy_qr_values:[]});if(!source)Object.assign(row,{description:'',stars:1});}
     if(g==='quests'){Object.assign(row,{analytics_key:freeKey(c,g),name:source?source.name+' (copy)':'New quest'});if(!source)Object.assign(row,{description:'',challenge_ids:[],required_stars:1,completion_bonus_stars:0,perfection_bonus_stars:0});}
     if(g==='reward_levels'&&!source)Object.assign(row,{title:'New reward',description:'',stars_required:1,star_cost:1,repeatable:false});
     if(g==='partners'&&!source)Object.assign(row,{name:'New promotion',banner_title:'New promotion',banner_message:'',show_banner:true,color:'#ed1c24'});
