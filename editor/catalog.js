@@ -101,7 +101,19 @@
     if(base.ExpoResetInProgress) throw new Error('An expo reset is in progress. Publishing is blocked.');
     return {...clone(base),content:clone(content)};
   }
-  const api={groups,normalize,migrate,validate,merge};
+  function liveNotifications(c,now=Date.now()) {
+    const result=[];
+    for(const group of ['notifications','reward_levels','partners'])for(const item of c?.[group]||[]){
+      if(item.enabled===false||(item.publication_status||'live')!=='live'||item.active===false)continue;
+      if(group!=='notifications'&&item.notify!==true)continue;
+      if(group==='partners'&&item.show_banner===false)continue;
+      if(item.start_at&&(!Number.isFinite(Date.parse(item.start_at))||now<Date.parse(item.start_at)))continue;
+      if(item.end_at&&(!Number.isFinite(Date.parse(item.end_at))||now>Date.parse(item.end_at)))continue;
+      result.push({id:group+':'+item.id,title:item.notification_title||item.title||item.banner_title||item.name||'Expo Quest',message:item.notification_message||item.description||item.banner_message||'A new reward is available.'});
+    }
+    return result;
+  }
+  const api={groups,normalize,migrate,validate,merge,liveNotifications};
   if(typeof module!=='undefined') module.exports=api;
   root.ExpoCatalog=api;
 })(globalThis);

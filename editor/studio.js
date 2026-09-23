@@ -22,7 +22,7 @@ async function load(initial=false){
     if(!Array.isArray(next.rewards)||!next.CurrentExpoID)throw Error('This is not a valid expo feed.');
     const draft=next.content?C.migrate(next.content,next.rewards):window.EXPO_MIGRATION_DRAFT?C.migrate(window.EXPO_MIGRATION_DRAFT,next.rewards):null;
     if(!draft)throw Error('The online catalog is not published yet and no migration draft is included.');
-    assertShape(draft);install(draft);base=next;sha=meta.sha;loaded=src;changed=false;
+    assertShape(draft);install(draft);base=next;sha=meta.sha;loaded=src;changed=false;renderLiveNotifications();
     $('draft-state').textContent=next.content?'Online content loaded':'Migration draft';
     say(next.content?'Loaded automatically from GitHub. Edits stay in your draft until you publish.':'Online feed connected. The catalog has not been published yet: showing the included migration draft. Update the reset service before the first publication.');
     $('connection').close();
@@ -145,7 +145,7 @@ function renderEditor(){
     const order=el('div','fields-row');for(const [caption,step] of [['Move earlier',-1],['Move later',1]])order.append(button(caption,()=>{const rows=content[group],i=rows.indexOf(row),j=i+step;if(j>=0&&j<rows.length){[rows[i],rows[j]]=[rows[j],rows[i]];dirty();renderAll();}}));card.append(order);
   }
   if(group==='notifications'){
-    card.append(el('p','muted','Each announcement notifies a visitor once. Edit its message without sending again, or create a new announcement to notify again. It also appears on the app home screen during its scheduled window.'));
+    card.append(el('p','muted','Each announcement notifies a visitor once. Edit its message without sending again, or create a new announcement to notify again. Notifications are not part of the app home layout; published active messages are listed below the mobile preview.'));
     card.querySelector('.image-editor')?.remove();
   }
   const details=el('details'),summary=el('summary','','Technical identity (kept unchanged)');details.append(summary,el('p','muted',`ID: ${row.id}${row.analytics_key?' · Analytics: '+row.analytics_key:''}`));card.append(details);box.append(card);
@@ -158,6 +158,14 @@ function renderAssigned(card,q){
   const pick=el('select');pick.setAttribute('aria-label','Add a challenge to this quest');pick.add(new Option('Choose a challenge to add…',''));for(const r of content.challenges.filter(r=>!q.challenge_ids.includes(r.id)))pick.add(new Option(title(r),r.id));pick.onchange=()=>{if(pick.value){M.assign(content,q.id,pick.value);dirty();renderAll();}};card.append(pick);
 }
 let previewFrame=null,previewTimer=null,previewReady=false;
+function renderLiveNotifications(){
+  const box=$('live-notifications');box.replaceChildren();
+  if(!base?.content){box.append(el('p','muted','Load published content to see live notifications.'));return;}
+  const notices=C.liveNotifications(base.content);
+  if(!notices.length){box.append(el('p','muted','No notifications are live now.'));return;}
+  for(const notice of notices){const card=el('article','notification-preview');card.append(el('strong','',notice.title),el('p','',notice.message));box.append(card);}
+}
+setInterval(renderLiveNotifications,30000);
 function renderPreview(){
   if(!content)return;
   const width=Number($('preview-width').value);
@@ -208,7 +216,7 @@ $('confirm-publish').onclick=guard(async()=>{
     if(!confirm('Publish this draft to the live app? Your content will be public.'))return;
     say('Uploading content to GitHub…');
     const result=await ExpoAuth.request({action:'publish',sha,content});
-    base=feed;sha=result.sha;changed=false;reviewed='';$('draft-state').textContent='Published';$('review').close();say('Published to GitHub. Phones receive the content after GitHub Pages updates and the app refreshes.');
+    base=feed;sha=result.sha;changed=false;reviewed='';renderLiveNotifications();$('draft-state').textContent='Published';$('review').close();say('Published to GitHub. Phones receive the content after GitHub Pages updates and the app refreshes.');
   }catch(e){$('review').close();throw e;}finally{lock(false);}
 });
 window.addEventListener('beforeunload',e=>{if(changed){e.preventDefault();e.returnValue='';}});
