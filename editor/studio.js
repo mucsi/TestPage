@@ -64,6 +64,11 @@ function renderLibrary(){
   if(!box.children.length)box.append(el('div','empty','No matching challenges.'));
 }
 function renderBoard(){
+  $('add-item').hidden=group==='splash';
+  if(group==='splash'){
+    document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.group==='splash'));
+    $('collection-title').textContent='Splash screen';$('board').replaceChildren();return;
+  }
   const boardGroup=group==='challenges'?'quests':group;document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.group===boardGroup));
   $('collection-title').textContent=names[boardGroup];$('add-item').textContent='+ Add '+singular[boardGroup];
   const box=$('board');box.replaceChildren();
@@ -117,6 +122,7 @@ function deleteNotification(id){
   say('Notification deleted from the draft. Click Publish to apply the deletion online.');
 }
 function renderEditor(){
+  if(group==='splash'){renderSplashEditor();return;}
   const box=$('editor');box.replaceChildren();const row=selected();if(!row){box.append(el('div','empty','Choose an item to edit, or add a new one.'));return;}
   const card=el('div','editor-card'),heading=el('div','section-title');heading.append(el('h2','',`Edit ${singular[group]}`));card.append(heading);
   field(card,row,['quests','partners'].includes(group)?'name':'title','Name');
@@ -186,6 +192,20 @@ function renderAssigned(card,q){
   zone.append(el('p','muted tiny','+ Drop a challenge here'));card.append(zone);
   const pick=el('select');pick.setAttribute('aria-label','Add a challenge to this quest');pick.add(new Option('Choose a challenge to add…',''));for(const r of content.challenges.filter(r=>!q.challenge_ids.includes(r.id)))pick.add(new Option(title(r),r.id));pick.onchange=()=>{if(pick.value){M.assign(content,q.id,pick.value);dirty();renderAll();}};card.append(pick);
 }
+function renderSplashEditor(){
+  const box=$('editor');box.replaceChildren();
+  const row=content.splash||{artwork:'',text:'Loading Quests!',background_color:'#000000',text_color:'#ffffff'};
+  const card=el('div','editor-card');card.append(el('h2','','Edit splash screen'),el('p','muted','This edits the in-app loading screen, not the brief native launch image. Published designs are cached for offline launches. A fresh install uses the default until its first download.'));
+  for(const [key,label,type] of [['text','Loading message','text'],['background_color','Background color','color'],['text_color','Text and dots color','color']]){
+    const input=field(card,row,key,label,type);if(key==='text')input.maxLength=80;
+    const change=input.oninput;input.oninput=()=>{content.splash=row;change();};
+  }
+  const label=el('label','','Splash artwork (PNG or JPEG)'),input=el('input');input.type='file';input.accept='image/png,image/jpeg';
+  input.onchange=guard(async()=>{content.splash=row;await upload(input.files[0],row);});label.append(input);
+  card.append(picture(row),label,el('small','muted','Portrait artwork recommended. The entire image is fitted without cropping; loading text appears near the bottom.'),button('Use default artwork',()=>{row.artwork='';content.splash=row;dirty();renderAll();}),button('Reset splash to default',()=>{if(!confirm('Reset the splash design in this draft? Publish to apply.'))return;delete content.splash;dirty();renderAll();}));box.append(card);
+}
+const splashTab=button('Splash screen',()=>{});splashTab.dataset.group='splash';$('tabs').append(splashTab);
+$('preview-screen').add(new Option('Splash screen','splash'));
 let previewFrame=null,previewTimer=null,previewReady=false;
 function renderLiveNotifications(){
   const box=$('live-notifications');box.replaceChildren();
@@ -219,9 +239,9 @@ window.addEventListener('message',event=>{
 });
 function renderAll(){if(!content)return;renderLibrary();renderBoard();renderEditor();renderPreview();}
 async function validate(){const errors=C.validate(content);if(errors.length)throw Error(errors.join('\n'));let pixels=0;for(const data of Object.values(content.images)){const img=new Image();img.src=data;await img.decode();if(!img.width||!img.height||img.width>2048||img.height>2048)throw Error('An image exceeds 2048 × 2048. Replace it with a new upload.');pixels+=img.width*img.height;if(pixels>16*1024*1024)throw Error('Artwork exceeds the offline memory budget. Use smaller images.');}}
-function compactImages(){const used=new Set(C.groups.flatMap(g=>content[g].map(r=>String(r.artwork||'').replace(/^asset:\/\//,''))));for(const key of Object.keys(content.images))if(!used.has(key))delete content.images[key];}
+function compactImages(){const used=new Set([...C.groups.flatMap(g=>content[g].map(r=>String(r.artwork||'').replace(/^asset:\/\//,''))),String(content.splash?.artwork||'').replace(/^asset:\/\//,'')]);for(const key of Object.keys(content.images))if(!used.has(key))delete content.images[key];}
 $('settings').onclick=()=>$('connection').showModal();$('reload').onclick=guard(()=>load());$('search').oninput=renderLibrary;
-document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{group=b.dataset.group;selection=content?.[group]?.[0]?.id;renderAll();});
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{group=b.dataset.group;selection=content?.[group]?.[0]?.id;$('preview-screen').value=group==='splash'?'splash':'home';renderAll();});
 $('add-challenge').onclick=guard(()=>{if(!content)return;const row=M.create(content,'challenges',crypto.randomUUID());dirty();choose('challenges',row.id);});
 $('add-item').onclick=guard(()=>{if(!content)return;const g=group==='challenges'?'quests':group;const row=M.create(content,g,crypto.randomUUID());dirty();choose(g,row.id);});
 $('preview-screen').onchange=renderPreview;$('preview-width').onchange=renderPreview;

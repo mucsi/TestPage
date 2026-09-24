@@ -5,9 +5,9 @@ const origin=location.origin;
 let pending=null;
 window.ExpoPreviewBridge={receive:null,ready(){document.getElementById('loading').style.display='none';parent.postMessage({type:'expo-preview-ready'},origin);if(pending)this.receive(pending);},report(error){parent.postMessage({type:'expo-preview-result',error},origin);}};
 addEventListener('message',event=>{if(event.source!==parent||event.origin!==origin||event.data?.type!=='expo-preview-update')return;pending=JSON.stringify(event.data.payload);if(ExpoPreviewBridge.receive)ExpoPreviewBridge.receive(pending);});
-const engine=new Engine({"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":11651608,"index.wasm":39513091},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4});
+const engine=new Engine({"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":11653064,"index.wasm":39513091},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4});
 const preload=engine.preloadFile.bind(engine);
-engine.preloadFile=(file,path)=>preload(typeof file==='string'&&file.endsWith('.pck')?file+'?v=fbd874d37cec9d9c':file,path);
+engine.preloadFile=(file,path)=>preload(typeof file==='string'&&file.endsWith('.pck')?file+'?v=92fcd299d5a35568':file,path);
 engine.startGame({canvas:document.getElementById('canvas')}).catch(error=>{document.getElementById('loading').textContent='Preview could not start: '+error;parent.postMessage({type:'expo-preview-result',error:String(error)},origin);});
 </script></body></html>
 

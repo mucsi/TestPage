@@ -43,6 +43,15 @@
     const errors=[], ids={};
     const integer=(v,min,max=1000000)=>Number.isSafeInteger(v)&&v>=min&&v<=max;
     if (!c || c.schema_version!==1 || !c.images || typeof c.images!=='object' || Array.isArray(c.images)) return ['Invalid catalog version/images'];
+    if(c.splash!==undefined){
+      const s=c.splash;
+      if(!s||typeof s!=='object'||Array.isArray(s))errors.push('Splash must be an object');
+      else{
+        if(s.text!==undefined&&(typeof s.text!=='string'||!s.text.trim()||s.text.length>80))errors.push('Splash text must contain 1–80 characters');
+        for(const key of ['background_color','text_color'])if(s[key]!==undefined&&(typeof s[key]!=='string'||!/^#[0-9a-f]{6}$/i.test(s[key])))errors.push('Invalid splash color');
+        if(s.artwork!==undefined&&(typeof s.artwork!=='string'||s.artwork&&(!s.artwork.startsWith('asset://')||!c.images[s.artwork.slice(8)])))errors.push('Upload splash artwork first');
+      }
+    }
     for(const group of groups) {
       if(group==='notifications'&&c[group]===undefined)continue;
       if(!Array.isArray(c[group]) || c[group].length>200) {errors.push(`${group}: expected at most 200 entries`);continue;}
