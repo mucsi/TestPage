@@ -10,9 +10,10 @@ window.ExpoAuth=(()=>{
     if(!response.ok)throw Error('Sign-in failed. Check your organizer email/password and connection.');
     return response.status===204?null:response.json();
   }
-  async function request(body){
+  async function request(body,service='admin-content'){
+    if(!['admin-content','admin-accounts'].includes(service))throw Error('Unknown service');
     if(local){
-      if(body.action!=='load')throw Error('Local preview cannot publish. Sign in with your organizer account.');
+      if(service!=='admin-content'||body.action!=='load')throw Error('Sign in with your organizer account to use this feature.');
       const response=await fetch('https://mucsi.github.io/TestPage/rewards.json',{cache:'no-store',signal:AbortSignal.timeout(20000)});
       if(!response.ok)throw Error('Could not load the public feed.');return {sha:'local-preview',feed:await response.json()};
     }
@@ -20,9 +21,9 @@ window.ExpoAuth=(()=>{
     if(Date.now()>session.expires){
       try{const next=await auth('token?grant_type=refresh_token',{refresh_token:session.refresh});session={access:next.access_token,refresh:next.refresh_token,expires:Date.now()+(next.expires_in-60)*1000};}catch{session=null;gate();throw Error('Session expired. Sign in again; your draft is kept in this tab.');}
     }
-    const response=await fetch(config.url+'/functions/v1/admin-content',{method:'POST',signal:AbortSignal.timeout(40000),headers:{apikey:config.key,Authorization:'Bearer '+session.access,'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const response=await fetch(config.url+'/functions/v1/'+service,{method:'POST',signal:AbortSignal.timeout(40000),headers:{apikey:config.key,Authorization:'Bearer '+session.access,'Content-Type':'application/json'},body:JSON.stringify(body)});
     let data;try{data=await response.json();}catch{throw Error('Content service is not available. Verify its deployment.');}
-    if(!response.ok){if(response.status===401||response.status===403){session=null;gate();}throw Error(data.error||'Content service is not available. Verify its deployment.');}
+    if(!response.ok){if(response.status===401||(response.status===403&&service==='admin-content')){session=null;gate();}throw Error(data.error||'Service is not available. Verify its deployment.');}
     return data;
   }
   function init(ready){
