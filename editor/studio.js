@@ -92,6 +92,20 @@ async function upload(file,row){
   if(content!==draft)throw Error('The draft changed while reading the image. Upload it again.');
   content.images[key]=optimized;row.artwork='asset://'+key;dirty();renderAll();say('Image added to the draft and resized for mobile. It will upload when you publish.');
 }
+function deleteCatalogItem(collection,id){
+  if(busy||!content||!['quests','reward_levels','partners'].includes(collection))return;
+  const rows=content[collection],index=rows.findIndex(row=>row.id===id);
+  if(index<0)return;
+  const label=singular[collection],extra=collection==='quests'?' Its challenges will stay in the library and other quests.':'';
+  if(!confirm('Delete '+label+' "'+title(rows[index])+'" from this draft?'+extra+' Publish afterwards to remove it from the live app.'))return;
+  rows.splice(index,1);
+  const next=rows[Math.min(index,rows.length-1)]?.id||null;
+  if(group===collection&&selection===id)selection=next;
+  if(collection==='quests'&&previewQuest===id){previewQuest=next;if(!next)$('preview-screen').value='home';}
+  if(collection==='reward_levels'&&previewReward===id){previewReward=next;if(!next)$('preview-screen').value='home';}
+  dirty();renderAll();
+  say(label[0].toUpperCase()+label.slice(1)+' deleted from the draft. Click Publish to apply the deletion online.');
+}
 function deleteNotification(id){
   if(busy||!content)return;
   const rows=content.notifications,index=rows.findIndex(row=>row.id===id);
@@ -153,6 +167,10 @@ function renderEditor(){
   }
   if(group!=='challenges'){
     const order=el('div','fields-row');for(const [caption,step] of [['Move earlier',-1],['Move later',1]])order.append(button(caption,()=>{const rows=content[group],i=rows.indexOf(row),j=i+step;if(j>=0&&j<rows.length){[rows[i],rows[j]]=[rows[j],rows[i]];dirty();renderAll();}}));card.append(order);
+  }
+  if(['quests','reward_levels','partners'].includes(group)){
+    const collection=group;
+    card.append(button('Delete '+singular[collection],()=>deleteCatalogItem(collection,row.id)));
   }
   if(group==='notifications'){
     card.append(el('p','muted','Each announcement notifies a visitor once. Edit its message without sending again, or create a new announcement to notify again. Notifications are not part of the app home layout; published active messages are listed below the mobile preview.'));
