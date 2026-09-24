@@ -203,7 +203,7 @@ function renderPreview(){
   $('phone').querySelector('.phone-status').style.height=Math.round(width*152/1080)+'px';
   if(location.protocol==='file:'){$('phone-content').textContent='The real Godot preview needs HTTP hosting. Open the studio through its local server or hosted website, not by double-clicking this file.';return;}
   if(!previewFrame){
-    previewFrame=document.createElement('iframe');previewFrame.title='Actual Expo Quest app preview';previewFrame.src='app-preview/index.html';
+    previewFrame=document.createElement('iframe');previewFrame.title='Actual Expo Quest app preview';previewFrame.src='app-preview/index.html?v='+Date.now();
     $('phone-content').replaceChildren(previewFrame);
   }
   clearTimeout(previewTimer);
