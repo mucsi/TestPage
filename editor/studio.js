@@ -92,6 +92,16 @@ async function upload(file,row){
   if(content!==draft)throw Error('The draft changed while reading the image. Upload it again.');
   content.images[key]=optimized;row.artwork='asset://'+key;dirty();renderAll();say('Image added to the draft and resized for mobile. It will upload when you publish.');
 }
+function deleteNotification(id){
+  if(busy||!content)return;
+  const rows=content.notifications,index=rows.findIndex(row=>row.id===id);
+  if(index<0)return;
+  if(!confirm('Delete "'+title(rows[index])+'" from this draft? Publish afterwards to remove it from the live app. Already delivered notifications cannot be recalled.'))return;
+  rows.splice(index,1);
+  if(group==='notifications'&&selection===id)selection=rows[Math.min(index,rows.length-1)]?.id||null;
+  dirty();renderAll();
+  say('Notification deleted from the draft. Click Publish to apply the deletion online.');
+}
 function renderEditor(){
   const box=$('editor');box.replaceChildren();const row=selected();if(!row){box.append(el('div','empty','Choose an item to edit, or add a new one.'));return;}
   const card=el('div','editor-card'),heading=el('div','section-title');heading.append(el('h2','',`Edit ${singular[group]}`));card.append(heading);
@@ -146,6 +156,7 @@ function renderEditor(){
   }
   if(group==='notifications'){
     card.append(el('p','muted','Each announcement notifies a visitor once. Edit its message without sending again, or create a new announcement to notify again. Notifications are not part of the app home layout; published active messages are listed below the mobile preview.'));
+    card.append(button('Delete notification',()=>deleteNotification(row.id)));
     card.querySelector('.image-editor')?.remove();
   }
   const details=el('details'),summary=el('summary','','Technical identity (kept unchanged)');details.append(summary,el('p','muted',`ID: ${row.id}${row.analytics_key?' · Analytics: '+row.analytics_key:''}`));card.append(details);box.append(card);
