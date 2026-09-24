@@ -81,11 +81,11 @@ function field(parent,row,key,label,type='text',hint=''){
 }
 async function upload(file,row){
   const draft=content;
-  const promo=content.partners.includes(row),ratio=promo?(row.banner_type==='full_image'?5/3:1):null;
+  const promo=content.partners.includes(row),ratio=promo&&row.banner_type!=='full_image'?1:null;
   if(!file)return;if(!['image/png','image/jpeg'].includes(file.type)||file.size>12*1024*1024)throw Error('Choose a PNG or JPEG image up to 12 MB.');
   const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('Could not read image.'));reader.readAsDataURL(file);});
   const img=new Image();img.src=data;await img.decode();if(img.width*img.height>40000000)throw Error('Image is too large; resize it below 40 megapixels.');
-  if(ratio&&Math.abs(img.width/img.height-ratio)>0.02)throw Error(`This promo needs a ${row.banner_type==='full_image'?'5:3 banner (for example 1000 × 600)':'1:1 square logo (for example 600 × 600)'}. Your image is ${img.width} × ${img.height}; resize or crop it before uploading.`);
+  if(ratio&&Math.abs(img.width/img.height-ratio)>0.02)throw Error(`Logo + text needs a 1:1 square logo (for example 600 × 600). Your image is ${img.width} × ${img.height}; choose Full image for a banner of any aspect ratio.`);
   const canvas=document.createElement('canvas'),scale=Math.min(1,768/Math.max(img.width,img.height));canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
   const optimized=canvas.toDataURL(file.type,file.type==='image/jpeg'?.88:undefined);if(optimized.length>3*1024*1024)throw Error('Image is still too large. Try a smaller JPEG.');
   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(optimized));const key=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
@@ -135,7 +135,7 @@ function renderEditor(){
     if(row.end_at)card.append(el('p','muted','Existing expiry: '+new Date(row.end_at).toLocaleString()),button('Remove expiry',()=>{delete row.end_at;dirty();renderAll();}));
   }
   if(group==='partners'){
-    const label=el('label','','Banner format'),select=el('select');select.add(new Option('Logo + text · square 1:1 logo','logo_text'));select.add(new Option('Full image · 5:3 banner','full_image'));select.value=row.banner_type||'logo_text';select.onchange=()=>{row.banner_type=select.value;row.artwork='';dirty();renderAll();say('Format changed. Upload an image in the new aspect ratio; existing text is kept for switching back.');};label.append(select);card.append(label,el('p','muted',row.banner_type==='full_image'?'Upload a complete 5:3 banner. No text is overlaid.':'Upload a square logo and add your headline and message.'));
+    const label=el('label','','Banner format'),select=el('select');select.add(new Option('Logo + text · square 1:1 logo','logo_text'));select.add(new Option('Full image · any aspect ratio','full_image'));select.value=row.banner_type||'logo_text';select.onchange=()=>{row.banner_type=select.value;row.artwork='';dirty();renderAll();say('Format changed. Upload an image for this format; existing text is kept for switching back.');};label.append(select);card.append(label,el('p','muted',row.banner_type==='full_image'?'Upload a banner of any aspect ratio. Its proportions are preserved without cropping or stretching. No text is overlaid.':'Upload a square logo and add your headline and message.'));
   }
   if(['reward_levels','partners'].includes(group)){
     const label=el('label','','Publication'),select=el('select');select.add(new Option('Live when published','live'));select.add(new Option('Draft / hidden','draft'));select.value=row.publication_status||'live';select.onchange=()=>{row.publication_status=select.value;dirty();renderBoard();renderPreview();};label.append(select);card.append(label);
