@@ -7,7 +7,7 @@ window.ExpoPreviewBridge={receive:null,ready(){document.getElementById('loading'
 addEventListener('message',event=>{if(event.source!==parent||event.origin!==origin||event.data?.type!=='expo-preview-update')return;pending=JSON.stringify(event.data.payload);if(ExpoPreviewBridge.receive)ExpoPreviewBridge.receive(pending);});
 const engine=new Engine({"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":12492160,"index.wasm":39513091},"focusCanvas":false,"gdextensionLibs":[],"godotPoolSize":4});
 const preload=engine.preloadFile.bind(engine);
-engine.preloadFile=(file,path)=>preload(typeof file==='string'&&file.endsWith('.pck')?file+'?v=4f55effd63faa499':file,path);
+engine.preloadFile=(file,path)=>preload(typeof file==='string'&&file.endsWith('.pck')?file+'?v=8980ab0c3673de2f':file,path);
 engine.startGame({canvas:document.getElementById('canvas')}).catch(error=>{document.getElementById('loading').textContent='Preview could not start: '+error;parent.postMessage({type:'expo-preview-result',error:String(error)},origin);});
 </script></body></html>
 
