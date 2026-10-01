@@ -14,7 +14,7 @@ window.ExpoAuth=(()=>{
     if(!['admin-content','admin-accounts'].includes(service))throw Error('Unknown service');
     if(local){
       if(service!=='admin-content'||body.action!=='load')throw Error('Sign in with your organizer account to use this feature.');
-      const response=await fetch('https://mucsi.github.io/TestPage/rewards.json',{cache:'no-store',signal:AbortSignal.timeout(20000)});
+      const response=await fetch('https://expoquest-links.pages.dev/rewards.json',{cache:'no-store',signal:AbortSignal.timeout(20000)});
       if(!response.ok)throw Error('Could not load the public feed.');return {sha:'local-preview',feed:await response.json()};
     }
     if(!session){gate();throw Error('Organizer sign-in required.');}

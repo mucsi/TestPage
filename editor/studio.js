@@ -270,7 +270,7 @@ $('confirm-publish').onclick=guard(async()=>{
     if(!confirm('Publish this draft to the live app? Your content will be public.'))return;
     say('Uploading content to GitHub…');
     const result=await ExpoAuth.request({action:'publish',sha,content});
-    base=feed;sha=result.sha;changed=false;reviewed='';renderLiveNotifications();$('draft-state').textContent='Published';$('review').close();say('Published to GitHub. Phones receive the content after GitHub Pages updates and the app refreshes.');
+    base=feed;sha=result.sha;changed=false;reviewed='';renderLiveNotifications();$('draft-state').textContent='Published';$('review').close();say('Saved to GitHub. Cloudflare is deploying the updated content automatically. Updated phones receive it on their next content check after deployment finishes.');
   }catch(e){$('review').close();throw e;}finally{lock(false);}
 });
 window.addEventListener('beforeunload',e=>{if(changed){e.preventDefault();e.returnValue='';}});
