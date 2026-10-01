@@ -22,6 +22,11 @@ async function load(initial=false){
     if(!Array.isArray(next.rewards)||!next.CurrentExpoID)throw Error('This is not a valid expo feed.');
     const draft=next.content?C.migrate(next.content,next.rewards):window.EXPO_MIGRATION_DRAFT?C.migrate(window.EXPO_MIGRATION_DRAFT,next.rewards):null;
     if(!draft)throw Error('The online catalog is not published yet and no migration draft is included.');
+    try{
+      const config=window.EXPO_AUTH_CONFIG;
+      const response=await fetch(config.url+'/rest/v1/rpc/reward_stock_snapshot',{method:'POST',headers:{apikey:config.key,'Content-Type':'application/json'},body:JSON.stringify({p_expo:next.CurrentExpoID}),signal:AbortSignal.timeout(10000)});
+      if(response.ok){const stocks=await response.json();for(const row of draft.reward_levels){const live=stocks.find(s=>s.reward_key===(row.claim_identity||'points:'+row.id)&&s.revision===(row.stock_revision||0));if(live){if(live.remaining===null)delete row.quantity;else row.quantity=Math.max(0,live.remaining);}}}
+    }catch{/* Offline drafts retain the last published stock. */}
     assertShape(draft);install(draft);base=next;sha=meta.sha;loaded=src;changed=false;renderLiveNotifications();
     $('draft-state').textContent=next.content?'Online content loaded':'Migration draft';
     say(next.content?'Loaded automatically from GitHub. Edits stay in your draft until you publish.':'Online feed connected. The catalog has not been published yet: showing the included migration draft. Update the reset service before the first publication.');
@@ -170,8 +175,8 @@ function renderEditor(){
   if(group==='reward_levels'){field(card,row,'requires_stars','Require collected stars to unlock','checkbox');field(values,row,'stars_required','Unlock at stars','number');field(values,row,'star_cost','Redemption cost','number');field(card,row,'repeatable','Can be claimed repeatedly','checkbox').checked=!!row.repeatable;field(card,row,'category','Category');field(card,row,'claim_qr','Merchant approval QR (blank uses default)');}
   if(group==='reward_levels'){
     const label=el('label','','Remaining quantity'),input=el('input');input.type='number';input.min='0';input.max='1000000000';input.step='1';input.placeholder='Not set';input.value=row.quantity??'';
-    input.oninput=()=>{if(input.value==='')delete row.quantity;else row.quantity=Number(input.value);dirty();renderPreview();};
-    label.append(input);card.append(label,el('p','muted','Set the remaining stock, then Publish. 0–50 shows the exact number left; above 50 shows Plenty. Update this manually after redemptions. Blank shows Availability at booth.'));
+    input.oninput=()=>{if(input.value==='')delete row.quantity;else row.quantity=Number(input.value);row.stock_revision=Math.max(Date.now(),(row.stock_revision||0)+1);dirty();renderPreview();};
+    label.append(input);card.append(label,el('p','muted','Admin approvals automatically deduct one item. Reload to see current stock. Changing this number and publishing sets a new remaining-stock count on the next approval. 0–50 shows the exact count; above 50 shows Plenty. Blank means stock is not tracked.'));
   }
   if(group==='quests'||group==='partners')field(card,row,'color','Accent colour','color');
   const artwork=el('div','image-editor'),uploadBox=el('div'),uploadLabel=el('label','', 'Upload image'),input=el('input');input.type='file';input.accept='image/png,image/jpeg';input.onchange=guard(()=>upload(input.files[0],row));uploadLabel.append(input);uploadBox.append(uploadLabel,el('small','muted','PNG or JPEG · automatically resized'),button('Remove image',()=>{row.artwork='';dirty();renderAll();}));artwork.append(picture(row),uploadBox);card.append(artwork);

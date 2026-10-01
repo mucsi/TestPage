@@ -70,6 +70,7 @@
         if(group==='notifications'&&(typeof row.description!=='string'||!row.description.trim()))errors.push(`${row.id}: notification message required`);
         if(group==='notifications'&&row.publish_mode==='later'&&!row.start_at)errors.push(`${row.id}: choose a date and time for Publish later`);
         if(group==='notifications'&&row.publish_mode&&!['now','later'].includes(row.publish_mode))errors.push(`${row.id}: invalid publishing choice`);
+        if(row.stock_revision!==undefined&&(!Number.isSafeInteger(row.stock_revision)||row.stock_revision<0))errors.push(`${row.id}: invalid stock revision`);
         if(row.claim_identity&&row.claim_identity!=='online:'+row.id)errors.push(`${row.id}: invalid legacy claim identity`);
         if(row.artwork && (typeof row.artwork!=='string'||!row.artwork.startsWith('asset://')||!c.images[row.artwork.slice(8)])) errors.push(`${row.id}: upload its artwork first`);
         if(row.color && !/^#[0-9a-f]{6}$/i.test(row.color)) errors.push(`${row.id}: invalid colour`);
