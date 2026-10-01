@@ -43,6 +43,7 @@
     const errors=[], ids={};
     const integer=(v,min,max=1000000)=>Number.isSafeInteger(v)&&v>=min&&v<=max;
     if (!c || c.schema_version!==1 || !c.images || typeof c.images!=='object' || Array.isArray(c.images)) return ['Invalid catalog version/images'];
+    if(c.expo_name!==undefined&&(typeof c.expo_name!=='string'||!c.expo_name.trim()||c.expo_name.length>100))errors.push('Expo name must contain 1–100 characters');
     if(c.splash!==undefined){
       const s=c.splash;
       if(!s||typeof s!=='object'||Array.isArray(s))errors.push('Splash must be an object');

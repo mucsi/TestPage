@@ -64,7 +64,11 @@ function renderLibrary(){
   if(!box.children.length)box.append(el('div','empty','No matching challenges.'));
 }
 function renderBoard(){
-  $('add-item').hidden=group==='splash';
+  $('add-item').hidden=['splash','expo'].includes(group);
+  if(group==='expo'){
+    document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.group==='expo'));
+    $('collection-title').textContent='Expo settings';$('board').replaceChildren();return;
+  }
   if(group==='splash'){
     document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.group==='splash'));
     $('collection-title').textContent='Splash screen';$('board').replaceChildren();return;
@@ -122,6 +126,7 @@ function deleteNotification(id){
   say('Notification deleted from the draft. Click Publish to apply the deletion online.');
 }
 function renderEditor(){
+  if(group==='expo'){renderExpoEditor();return;}
   if(group==='splash'){renderSplashEditor();return;}
   const box=$('editor');box.replaceChildren();const row=selected();if(!row){box.append(el('div','empty','Choose an item to edit, or add a new one.'));return;}
   const card=el('div','editor-card'),heading=el('div','section-title');heading.append(el('h2','',`Edit ${singular[group]}`));card.append(heading);
@@ -209,6 +214,17 @@ function renderSplashEditor(){
   input.onchange=guard(async()=>{content.splash=row;await upload(input.files[0],row);});label.append(input);
   card.append(picture(row),label,el('small','muted','Portrait artwork recommended. The entire image is fitted without cropping; loading text appears near the bottom.'),button('Use default artwork',()=>{row.artwork='';content.splash=row;dirty();renderAll();}),button('Reset splash to default',()=>{if(!confirm('Reset the splash design in this draft? Publish to apply.'))return;delete content.splash;dirty();renderAll();}));box.append(card);
 }
+function renderExpoEditor(){
+  const box=$('editor');box.replaceChildren();
+  const card=el('div','editor-card');card.append(el('h2','','Expo settings'),el('p','muted','Visitors see an in-person attendance disclaimer before using the app. Changing this name does not change the Current Expo ID or reset progress.'));
+  const row={expo_name:content.expo_name??'Essen Spiel 2026'};
+  const input=field(card,row,'expo_name','Expo name');input.maxLength=100;
+  const change=input.oninput;input.oninput=()=>{content.expo_name=input.value;change();};
+  card.append(el('p','muted','Publish to update the event name in the app. The disclaimer is acknowledged once per expo on each device.'));
+  box.append(card);
+}
+const expoTab=button('Expo settings',()=>{});expoTab.dataset.group='expo';$('tabs').append(expoTab);
+$('preview-screen').add(new Option('Attendance disclaimer','disclaimer'));
 const splashTab=button('Splash screen',()=>{});splashTab.dataset.group='splash';$('tabs').append(splashTab);
 $('preview-screen').add(new Option('Splash screen','splash'));
 let previewFrame=null,previewTimer=null,previewReady=false;
@@ -246,7 +262,7 @@ function renderAll(){if(!content)return;renderLibrary();renderBoard();renderEdit
 async function validate(){const errors=C.validate(content);if(errors.length)throw Error(errors.join('\n'));let pixels=0;for(const data of Object.values(content.images)){const img=new Image();img.src=data;await img.decode();if(!img.width||!img.height||img.width>2048||img.height>2048)throw Error('An image exceeds 2048 × 2048. Replace it with a new upload.');pixels+=img.width*img.height;if(pixels>16*1024*1024)throw Error('Artwork exceeds the offline memory budget. Use smaller images.');}}
 function compactImages(){const used=new Set([...C.groups.flatMap(g=>content[g].map(r=>String(r.artwork||'').replace(/^asset:\/\//,''))),String(content.splash?.artwork||'').replace(/^asset:\/\//,'')]);for(const key of Object.keys(content.images))if(!used.has(key))delete content.images[key];}
 $('settings').onclick=()=>$('connection').showModal();$('reload').onclick=guard(()=>load());$('search').oninput=renderLibrary;
-document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{group=b.dataset.group;selection=content?.[group]?.[0]?.id;$('preview-screen').value=group==='splash'?'splash':'home';renderAll();});
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{group=b.dataset.group;selection=content?.[group]?.[0]?.id;$('preview-screen').value=group==='splash'?'splash':group==='expo'?'disclaimer':'home';renderAll();});
 $('add-challenge').onclick=guard(()=>{if(!content)return;const row=M.create(content,'challenges',crypto.randomUUID());dirty();choose('challenges',row.id);});
 $('add-item').onclick=guard(()=>{if(!content)return;const g=group==='challenges'?'quests':group;const row=M.create(content,g,crypto.randomUUID());dirty();choose(g,row.id);});
 $('preview-screen').onchange=renderPreview;$('preview-width').onchange=renderPreview;
