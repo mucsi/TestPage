@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.laserox.quest",
+      "sha256_cert_fingerprints": [
+        "2F:16:6E:4E:C9:6E:96:D8:2B:71:AF:20:78:FE:EC:98:EC:E4:03:32:F9:B9:6F:DE:08:DB:5B:30:0D:CF:99:9C"
+      ]
+    }
+  }
+]
