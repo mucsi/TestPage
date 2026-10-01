@@ -44,6 +44,16 @@
     const integer=(v,min,max=1000000)=>Number.isSafeInteger(v)&&v>=min&&v<=max;
     if (!c || c.schema_version!==1 || !c.images || typeof c.images!=='object' || Array.isArray(c.images)) return ['Invalid catalog version/images'];
     if(c.expo_name!==undefined&&(typeof c.expo_name!=='string'||!c.expo_name.trim()||c.expo_name.length>100))errors.push('Expo name must contain 1–100 characters');
+    if(c.email_draw!==undefined){
+      const d=c.email_draw;
+      if(!d||typeof d!=='object'||Array.isArray(d))errors.push('Invalid email signup settings');
+      else{
+        if(typeof d.title!=='string'||!d.title.trim()||d.title.length>100)errors.push('Email prize popup needs a title up to 100 characters');
+        if(d.description!==undefined&&(typeof d.description!=='string'||d.description.length>2000))errors.push('Email prize introduction is too long');
+        if(!Array.isArray(d.draw_prizes)||d.draw_prizes.length>100||d.draw_prizes.some(p=>typeof p!=='string'||!p.trim()||p.length>500))errors.push('Email prizes: up to 100 lines, 500 characters each');
+        if(d.artwork&&(typeof d.artwork!=='string'||!d.artwork.startsWith('asset://')||!c.images[d.artwork.slice(8)]))errors.push('Upload email signup artwork first');
+      }
+    }
     if(c.splash!==undefined){
       const s=c.splash;
       if(!s||typeof s!=='object'||Array.isArray(s))errors.push('Splash must be an object');

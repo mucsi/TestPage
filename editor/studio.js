@@ -237,10 +237,19 @@ function renderExpoEditor(){
   const input=field(card,row,'expo_name','Expo name');input.maxLength=100;
   const change=input.oninput;input.oninput=()=>{content.expo_name=input.value;change();};
   card.append(el('p','muted','Publish to update the event name in the app. The disclaimer is acknowledged once per expo on each device.'));
+  card.append(el('h3','','Email signup'),el('p','muted','The signup image opens these daily prizes. Publish to update the phone.'));
+  const draw=content.email_draw||{title:'Daily draw prizes',description:'',draw_prizes:[]};
+  const saveDraw=()=>{content.email_draw=draw;dirty();renderPreview();};
+  for(const [key,label,type] of [['title','Popup title','text'],['description','Prize introduction','textarea']]){const input=field(card,draw,key,label,type);input.oninput=()=>{draw[key]=input.value;saveDraw();};}
+  const prizes=el('label','','Daily prizes — one per line'),list=el('textarea');list.rows=6;list.value=(draw.draw_prizes||[]).join('\n');list.oninput=()=>{draw.draw_prizes=list.value.split('\n').map(s=>s.trim()).filter(Boolean);saveDraw();};prizes.append(list);card.append(prizes);
+  const uploadLabel=el('label','','Email signup image'),file=el('input');file.type='file';file.accept='image/png,image/jpeg';
+  file.onchange=guard(async()=>{content.email_draw=draw;await upload(file.files[0],draw);});uploadLabel.append(file);card.append(picture(draw),uploadLabel,button('Use default email image',()=>{draw.artwork='';saveDraw();renderEditor();}));
+  card.append(button('Preview email signup',()=>{$('preview-screen').value='email';renderPreview();}));
   box.append(card);
 }
 const expoTab=button('Expo settings',()=>{});expoTab.dataset.group='expo';$('tabs').append(expoTab);
 $('preview-screen').add(new Option('Attendance disclaimer','disclaimer'));
+$('preview-screen').add(new Option('Email signup','email'));
 const splashTab=button('Splash screen',()=>{});splashTab.dataset.group='splash';$('tabs').append(splashTab);
 $('preview-screen').add(new Option('Splash screen','splash'));
 let previewFrame=null,previewTimer=null,previewReady=false;
@@ -276,7 +285,7 @@ window.addEventListener('message',event=>{
 });
 function renderAll(){if(!content)return;renderLibrary();renderBoard();renderEditor();renderPreview();}
 async function validate(){const errors=C.validate(content);if(errors.length)throw Error(errors.join('\n'));let pixels=0;for(const data of Object.values(content.images)){const img=new Image();img.src=data;await img.decode();if(!img.width||!img.height||img.width>2048||img.height>2048)throw Error('An image exceeds 2048 × 2048. Replace it with a new upload.');pixels+=img.width*img.height;if(pixels>16*1024*1024)throw Error('Artwork exceeds the offline memory budget. Use smaller images.');}}
-function compactImages(){const used=new Set([...C.groups.flatMap(g=>content[g].map(r=>String(r.artwork||'').replace(/^asset:\/\//,''))),String(content.splash?.artwork||'').replace(/^asset:\/\//,'')]);for(const key of Object.keys(content.images))if(!used.has(key))delete content.images[key];}
+function compactImages(){const used=new Set([...C.groups.flatMap(g=>content[g].map(r=>String(r.artwork||'').replace(/^asset:\/\//,''))),String(content.email_draw?.artwork||'').replace(/^asset:\/\//,''),String(content.splash?.artwork||'').replace(/^asset:\/\//,'')]);for(const key of Object.keys(content.images))if(!used.has(key))delete content.images[key];}
 $('settings').onclick=()=>$('connection').showModal();$('reload').onclick=guard(()=>load());$('search').oninput=renderLibrary;
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{group=b.dataset.group;selection=content?.[group]?.[0]?.id;$('preview-screen').value=group==='splash'?'splash':group==='expo'?'disclaimer':'home';renderAll();});
 $('add-challenge').onclick=guard(()=>{if(!content)return;const row=M.create(content,'challenges',crypto.randomUUID());dirty();choose('challenges',row.id);});
