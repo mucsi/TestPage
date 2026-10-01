@@ -163,6 +163,11 @@ function renderEditor(){
   if(group==='quests'){field(values,row,'required_stars','Stars needed','number');field(values,row,'completion_bonus_stars','Completion bonus','number');field(values,row,'perfection_bonus_stars','All-challenges bonus','number');}
   if(group==='challenges'){const amount=field(values,row,'stars','Star reward','number');amount.min=1;amount.max=5;field(values,row,'value','QR code value');}
   if(group==='reward_levels'){field(card,row,'requires_stars','Require collected stars to unlock','checkbox');field(values,row,'stars_required','Unlock at stars','number');field(values,row,'star_cost','Redemption cost','number');field(card,row,'repeatable','Can be claimed repeatedly','checkbox').checked=!!row.repeatable;field(card,row,'category','Category');field(card,row,'claim_qr','Merchant approval QR (blank uses default)');}
+  if(group==='reward_levels'){
+    const label=el('label','','Remaining quantity'),input=el('input');input.type='number';input.min='0';input.max='1000000000';input.step='1';input.placeholder='Not set';input.value=row.quantity??'';
+    input.oninput=()=>{if(input.value==='')delete row.quantity;else row.quantity=Number(input.value);dirty();renderPreview();};
+    label.append(input);card.append(label,el('p','muted','Set the remaining stock, then Publish. 0–50 shows the exact number left; above 50 shows Plenty. Update this manually after redemptions. Blank shows Availability at booth.'));
+  }
   if(group==='quests'||group==='partners')field(card,row,'color','Accent colour','color');
   const artwork=el('div','image-editor'),uploadBox=el('div'),uploadLabel=el('label','', 'Upload image'),input=el('input');input.type='file';input.accept='image/png,image/jpeg';input.onchange=guard(()=>upload(input.files[0],row));uploadLabel.append(input);uploadBox.append(uploadLabel,el('small','muted','PNG or JPEG · automatically resized'),button('Remove image',()=>{row.artwork='';dirty();renderAll();}));artwork.append(picture(row),uploadBox);card.append(artwork);
   if(group==='quests')renderAssigned(card,row);

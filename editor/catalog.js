@@ -97,6 +97,7 @@
     }
     for(const r of c.reward_levels || []) {
       if(!r || typeof r!=='object') continue;
+      if('quantity' in r&&!integer(r.quantity,0,1000000000)) errors.push(`${r.id}: quantity must be a non-negative whole number up to 1000000000`);
       if(!integer(r.stars_required,1)||('star_cost' in r&&!integer(r.star_cost,0))) errors.push(`${r.id}: invalid reward price`);
     }
     for(const image of Object.values(c.images)) if(typeof image!=='string'||!/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+=*$/.test(image)||image.length>3*1024*1024) errors.push('Invalid or oversized image');
