@@ -217,7 +217,7 @@ function renderSplashEditor(){
 function renderExpoEditor(){
   const box=$('editor');box.replaceChildren();
   const card=el('div','editor-card');card.append(el('h2','','Expo settings'),el('p','muted','Visitors see an in-person attendance disclaimer before using the app. Changing this name does not change the Current Expo ID or reset progress.'));
-  const row={expo_name:content.expo_name??'Essen Spiel 2026'};
+  const row={expo_name:content.expo_name??'SPIEL ESSEN 22. – 25. OKT 2026'};
   const input=field(card,row,'expo_name','Expo name');input.maxLength=100;
   const change=input.oninput;input.oninput=()=>{content.expo_name=input.value;change();};
   card.append(el('p','muted','Publish to update the event name in the app. The disclaimer is acknowledged once per expo on each device.'));
