@@ -136,6 +136,17 @@ function renderEditor(){
   const box=$('editor');box.replaceChildren();const row=selected();if(!row){box.append(el('div','empty','Choose an item to edit, or add a new one.'));return;}
   const card=el('div','editor-card'),heading=el('div','section-title');heading.append(el('h2','',`Edit ${singular[group]}`));card.append(heading);
   field(card,row,['quests','partners'].includes(group)?'name':'title','Name');
+  const dailyDraw=group==='reward_levels'&&row.reward_type==='daily_draw';
+  if(group==='reward_levels'){
+    const label=el('label','','Reward type'),select=el('select');
+    select.add(new Option('Claimable reward','claimable'));select.add(new Option('Daily draw prizes','daily_draw'));select.value=row.reward_type||'claimable';
+    select.onchange=()=>{row.reward_type=select.value;row.stars_required??=1;row.draw_prizes??=[];dirty();renderAll();};label.append(select);card.append(label);
+    if(dailyDraw){
+      const label=el('label','','Prizes — one prize per line'),input=el('textarea');input.rows=8;input.value=(row.draw_prizes||[]).join('\n');
+      input.oninput=()=>{row.draw_prizes=input.value.split('\n').map(s=>s.trim()).filter(Boolean);dirty();renderPreview();};
+      label.append(input);card.append(label,el('p','muted','This card has no lock, star price or claim button. Tap it in the phone preview to see the entry count and prizes. Use the description for draw dates and other details.'));
+    }
+  }
   const enabled=field(card,row,'enabled',group==='notifications'?'Enable notification':'Visible in the app','checkbox');
   if(group==='notifications'){
     enabled.checked=row.enabled!==false&&row.publication_status!=='draft';
@@ -172,8 +183,8 @@ function renderEditor(){
   const values=el('div','fields-row');card.append(values);
   if(group==='quests'){field(values,row,'required_stars','Stars needed','number');field(values,row,'completion_bonus_stars','Completion bonus','number');field(values,row,'perfection_bonus_stars','All-challenges bonus','number');}
   if(group==='challenges'){const amount=field(values,row,'stars','Star reward','number');amount.min=1;amount.max=5;field(values,row,'value','QR code value');}
-  if(group==='reward_levels'){field(card,row,'requires_stars','Require collected stars to unlock','checkbox');field(values,row,'stars_required','Unlock at stars','number');field(values,row,'star_cost','Redemption cost','number');field(card,row,'repeatable','Can be claimed repeatedly','checkbox').checked=!!row.repeatable;field(card,row,'category','Category');field(card,row,'claim_qr','Merchant approval QR (blank uses default)');}
-  if(group==='reward_levels'){
+  if(group==='reward_levels'&&!dailyDraw){field(card,row,'requires_stars','Require collected stars to unlock','checkbox');field(values,row,'stars_required','Unlock at stars','number');field(values,row,'star_cost','Redemption cost','number');field(card,row,'repeatable','Can be claimed repeatedly','checkbox').checked=!!row.repeatable;field(card,row,'category','Category');field(card,row,'claim_qr','Merchant approval QR (blank uses default)');}
+  if(group==='reward_levels'&&!dailyDraw){
     const label=el('label','','Remaining quantity'),input=el('input');input.type='number';input.min='0';input.max='1000000000';input.step='1';input.placeholder='Not set';input.value=row.quantity??'';
     input.oninput=()=>{if(input.value==='')delete row.quantity;else row.quantity=Number(input.value);row.stock_revision=Math.max(Date.now(),(row.stock_revision||0)+1);dirty();renderPreview();};
     label.append(input);card.append(label,el('p','muted','Admin approvals automatically deduct one item. Reload to see current stock. Changing this number and publishing sets a new remaining-stock count on the next approval. 0–50 shows the exact count; above 50 shows Plenty. Blank means stock is not tracked.'));

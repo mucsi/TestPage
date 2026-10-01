@@ -100,6 +100,8 @@
     }
     for(const r of c.reward_levels || []) {
       if(!r || typeof r!=='object') continue;
+      if(!['claimable','daily_draw'].includes(r.reward_type||'claimable'))errors.push(`${r.id}: invalid reward type`);
+      if(r.reward_type==='daily_draw'&&(!Array.isArray(r.draw_prizes)||r.draw_prizes.length>100||r.draw_prizes.some(p=>typeof p!=='string'||!p.trim()||p.length>500)))errors.push(`${r.id}: provide up to 100 prizes, each up to 500 characters`);
       if('quantity' in r&&!integer(r.quantity,0,1000000000)) errors.push(`${r.id}: quantity must be a non-negative whole number up to 1000000000`);
       if(!integer(r.stars_required,1)||('star_cost' in r&&!integer(r.star_cost,0))) errors.push(`${r.id}: invalid reward price`);
     }
