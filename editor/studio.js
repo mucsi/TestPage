@@ -158,7 +158,7 @@ function renderEditor(){
   }
   if(group==='partners'){field(card,row,'banner_title','Banner headline');field(card,row,'banner_message','Banner text','textarea');field(card,row,'show_banner','Show in promo carousel','checkbox');field(card,row,'booth','Booth / location');field(card,row,'hint','Visitor hint','textarea');}
   else field(card,row,'description','Description','textarea');
-  if(group==='challenges'){field(card,row,'short_description','Short card description','textarea',' Leave blank to use the description.');field(card,row,'detailed_description','Scanning instructions','textarea',' Leave blank to use the description.');}
+  if(group==='challenges'){const booth=field(card,row,'booth_number','Booth number','text','Optional, up to 24 characters, e.g. 3B215. Shown in bold on the card.');booth.maxLength=24;field(card,row,'short_description','Short card description','textarea',' Leave blank to use the description.');field(card,row,'detailed_description','Scanning instructions','textarea',' Leave blank to use the description.');}
   const values=el('div','fields-row');card.append(values);
   if(group==='quests'){field(values,row,'required_stars','Stars needed','number');field(values,row,'completion_bonus_stars','Completion bonus','number');field(values,row,'perfection_bonus_stars','All-challenges bonus','number');}
   if(group==='challenges'){const amount=field(values,row,'stars','Star reward','number');amount.min=1;amount.max=5;field(values,row,'value','QR code value');}

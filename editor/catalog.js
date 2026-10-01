@@ -79,6 +79,7 @@
     for(const p of c.partners) if(!['logo_text','full_image'].includes(p.banner_type||'logo_text')) errors.push(`${p.id}: unknown promo format`);
     for(const row of c.challenges || []) {
       if(!row || typeof row!=='object') continue;
+      if(row.booth_number!==undefined&&(typeof row.booth_number!=='string'||row.booth_number.length>24)) errors.push(`${row.id}: booth_number must be text up to 24 characters`);
       if(typeof row.value!=='string'||!row.value.trim()||row.value!==row.value.trim()||codes.has(row.value)) errors.push(`${row.id}: invalid/duplicate QR value`);
       codes.add(row.value);
       if(!integer(row.stars,1,5)) errors.push(`${row.id}: stars must be 1–5`);
