@@ -98,7 +98,11 @@ function renderLibrary(){
   if(!box.children.length)box.append(el('div','empty','No matching challenges.'));
 }
 function renderBoard(){
-  $('add-item').hidden=['splash','expo'].includes(group);
+  $('add-item').hidden=['splash','expo','app_text'].includes(group);
+  if(group==='app_text'){
+    document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.group==='app_text'));
+    $('collection-title').textContent='App text';$('board').replaceChildren();return;
+  }
   if(group==='expo'){
     document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.group==='expo'));
     $('collection-title').textContent='Expo settings';$('board').replaceChildren();return;
@@ -160,6 +164,7 @@ function deleteNotification(id){
   say('Notification deleted from the draft. Click Publish to apply the deletion online.');
 }
 function renderEditor(){
+  if(group==='app_text'){renderTextEditor();return;}
   if(group==='expo'){renderExpoEditor();return;}
   if(group==='splash'){renderSplashEditor();return;}
   const box=$('editor');box.replaceChildren();const row=selected();if(!row){box.append(el('div','empty','Choose an item to edit, or add a new one.'));return;}
@@ -295,6 +300,26 @@ function renderExpoEditor(){
   card.append(button('Preview email signup',()=>{$('preview-screen').value='email';renderPreview();}));
   box.append(card);
 }
+let appTextDefaults=null;
+async function renderTextEditor(){
+  const box=$('editor');box.replaceChildren();
+  if(!appTextDefaults){
+    box.append(el('p','muted','Loading editable texts…'));
+    try{const response=await fetch('ui-texts.json?v=20261002');if(!response.ok)throw Error('Could not load text defaults.');appTextDefaults=await response.json();}
+    catch(e){if(group==='app_text')box.replaceChildren(el('p','',e.message));return;}
+    if(group!=='app_text')return;box.replaceChildren();
+  }
+  const card=el('div','editor-card');card.append(el('h2','','App text'),el('p','muted','Edit the explanations shown during signup, in Help and in daily draws. Changes are saved as drafts; Publish updates supported apps after their next content refresh. Empty text hides the wording; Reset restores the default.'));
+  card.append(el('p','muted','Placeholders: {expo} inserts the event name; {retention} and {contact} insert privacy details. Keep privacy and draw summaries accurate and consistent with your full privacy policy and actual rules. Editing these texts does not change the rules, retention settings or the full policy.'));
+  const pretty=value=>value.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase());
+  for(const [key,fallback] of Object.entries(appTextDefaults)){
+    const row=el('label','',pretty(key)),input=el('textarea');input.rows=fallback.length>300?7:3;input.maxLength=6000;input.value=content.app_text?.[key]??fallback;
+    input.oninput=()=>{content.app_text||={};content.app_text[key]=input.value;dirty();renderPreview();};
+    row.append(input,button('Reset to default',()=>{if(content.app_text)delete content.app_text[key];input.value=fallback;dirty();renderPreview();}));card.append(row);
+  }
+  box.append(card);
+}
+const textTab=button('App text',()=>{});textTab.dataset.group='app_text';$('tabs').append(textTab);
 const expoTab=button('Expo settings',()=>{});expoTab.dataset.group='expo';$('tabs').append(expoTab);
 $('preview-screen').add(new Option('Attendance disclaimer','disclaimer'));
 $('preview-screen').add(new Option('Email signup','email'));

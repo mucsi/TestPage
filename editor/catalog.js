@@ -42,6 +42,11 @@
   function validate(c) {
     const errors=[], ids={};
     const integer=(v,min,max=1000000)=>Number.isSafeInteger(v)&&v>=min&&v<=max;
+    if(c?.app_text!==undefined){
+      const texts=c.app_text;
+      if(!texts||typeof texts!=='object'||Array.isArray(texts)||Object.keys(texts).length>100)errors.push('Invalid app text settings');
+      else for(const [key,value] of Object.entries(texts))if(key.length>80||typeof value!=='string'||value.length>6000)errors.push('App text must be plain text up to 6000 characters');
+    }
     if (!c || c.schema_version!==1 || !c.images || typeof c.images!=='object' || Array.isArray(c.images)) return ['Invalid catalog version/images'];
     if(c.expo_name!==undefined&&(typeof c.expo_name!=='string'||!c.expo_name.trim()||c.expo_name.length>100))errors.push('Expo name must contain 1–100 characters');
     if(c.draw_event!==undefined){
