@@ -9,6 +9,24 @@ complete folder on GitHub Pages; no Godot installation is needed by editors.
 Sign in with an existing Expo Quest organizer account, not Supabase dashboard credentials.
 No GitHub token or server secret is entered into the browser.
 
+## Draft recovery
+
+Edits (including uploaded images) are automatically saved in this browser's
+IndexedDB. Wait for “Draft saved on this computer” before closing. This is not
+publication: use Publish to update phones. A storage failure shows “Draft NOT
+saved”; use Save draft to download a JSON backup in that case.
+
+After signing in again, accept the recovery prompt to restore the most recent
+unpublished draft for your account and repository. Recover draft also opens that
+prompt. Tabs use separate draft records. Recovery retains the original online
+revision, so newer publications still cause a conflict rather than being silently
+overwritten. Reloading online content preserves the previous recovery copy.
+
+Drafts are local to this browser/profile and website address, not synchronized
+between computers. Private browsing or clearing site data can erase them. Keep a
+downloaded backup for important changes. Drafts contain public catalog content and
+images, never passwords or session tokens.
+
 ## Admin accounts
 
 The header's Admins button opens account management, separate from content
@@ -133,9 +151,10 @@ From the repository root, with Godot 4.7.1:
 
     Godot --headless --path . --script res://tools/content-admin/export_seed.gd -- OUTPUT.json
 
-This expands the current challenge pool without changing IDs, embeds optimized
-512-pixel JPEG artwork on white backgrounds, and leaves original artwork untouched.
-Review transparent artwork in the preview if you want to replace it with PNGs.
+This expands the legacy test challenge pool without changing IDs. Its obsolete
+bundled catalog artwork has been removed; regenerated seeds therefore have no
+quest/reward/promo images. Use the online catalog for real content. Existing
+published catalogs and migration drafts retain their embedded images.
 
     node --test tools/content-admin/catalog.test.cjs
     node --test tools/content-admin/editor-model.test.cjs

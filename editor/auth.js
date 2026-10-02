@@ -19,7 +19,7 @@ window.ExpoAuth=(()=>{
     }
     if(!session){gate();throw Error('Organizer sign-in required.');}
     if(Date.now()>session.expires){
-      try{const next=await auth('token?grant_type=refresh_token',{refresh_token:session.refresh});session={access:next.access_token,refresh:next.refresh_token,expires:Date.now()+(next.expires_in-60)*1000};}catch{session=null;gate();throw Error('Session expired. Sign in again; your draft is kept in this tab.');}
+      try{const next=await auth('token?grant_type=refresh_token',{refresh_token:session.refresh});session={userId:next.user?.id||session.userId,access:next.access_token,refresh:next.refresh_token,expires:Date.now()+(next.expires_in-60)*1000};}catch{session=null;gate();throw Error('Session expired. Sign in again; your draft is kept in this tab.');}
     }
     const response=await fetch(config.url+'/functions/v1/'+service,{method:'POST',signal:AbortSignal.timeout(40000),headers:{apikey:config.key,Authorization:'Bearer '+session.access,'Content-Type':'application/json'},body:JSON.stringify(body)});
     let data;try{data=await response.json();}catch{throw Error('Content service is not available. Verify its deployment.');}
@@ -34,12 +34,12 @@ window.ExpoAuth=(()=>{
       try{
         if(!config.url?.startsWith('https://')||!config.key)throw Error('Organizer authentication is not configured.');
         const data=await auth('token?grant_type=password',{email:byId('login-email').value.trim(),password:byId('login-password').value});
-        byId('login-password').value='';session={access:data.access_token,refresh:data.refresh_token,expires:Date.now()+(data.expires_in-60)*1000};local=false;
+        byId('login-password').value='';session={userId:data.user.id,access:data.access_token,refresh:data.refresh_token,expires:Date.now()+(data.expires_in-60)*1000};local=false;
         await request({action:'load'});unlock();message('');await onReady();
       }catch(e){session=null;message(e.message);}finally{byId('login-password').value='';submit.disabled=false;}
     };
     byId('local-preview').onclick=async()=>{local=true;session=null;unlock();await onReady();};
     byId('signout').onclick=async()=>{const access=session?.access;session=null;local=false;gate();message('Signed out. Your unpublished draft stays in this tab until you close it.');if(access)try{await auth('logout?scope=local',null,access);}catch{/* local state is already cleared */}};
   }
-  return {init,request,get local(){return local;}};
+  return {init,request,get local(){return local;},get userId(){return local?'local-preview':session?.userId||'';}};
 })();

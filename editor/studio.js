@@ -8,13 +8,42 @@ const guard=fn=>async(...args)=>{try{await fn(...args);}catch(e){say(e.message||
 const title=r=>r.title||r.name||r.id;
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;}
 function button(text,fn,cls='secondary'){const b=el('button',cls,text);b.type='button';b.onclick=guard(fn);return b;}
-function dirty(){changed=true;reviewed='';$('draft-state').textContent='Unsaved draft';}
+let draftOwner='',draftId=crypto.randomUUID(),draftWrites=Promise.resolve(),draftRevision=0,recoveredDraft=null;
+function saveLocalDraft(){
+  if(!content||!draftOwner)return;
+  const revision=++draftRevision;
+  const record=structuredClone({id:draftId,owner:draftOwner,source:loaded||source(),content,base,sha,updated:Date.now()});
+  $('draft-state').textContent='Saving draft on this computer…';
+  draftWrites=draftWrites.catch(()=>{}).then(()=>ExpoDrafts.save(record)).then(()=>{
+    if(revision===draftRevision&&changed)$('draft-state').textContent='Draft saved on this computer · not published';
+  }).catch(()=>{
+    $('draft-state').textContent='Draft NOT saved — download a backup';
+    say('Browser storage is unavailable or full. Use Save draft to download a backup before closing this tab.');
+  });
+}
+async function clearLocalDraft(){
+  await draftWrites;await ExpoDrafts.remove(draftId);
+  if(recoveredDraft)await ExpoDrafts.removeIfUnchanged(recoveredDraft.id,recoveredDraft.updated);
+  recoveredDraft=null;draftId=crypto.randomUUID();
+}
+async function restoreLocalDraft(){
+  const drafts=await ExpoDrafts.list(draftOwner,source());
+  if(!drafts.length)return false;
+  const latest=drafts[0];
+  if(!confirm('Restore the unpublished draft saved on this computer at '+new Date(latest.updated).toLocaleString()+'? Cancel keeps the current content.'))return false;
+  assertShape(latest.content);recoveredDraft=latest;base=latest.base;sha=latest.sha;loaded=latest.source;
+  // Keep the original SHA: publishing must detect intervening remote edits.
+  install(latest.content);dirty();say('Local draft restored. Publishing will check for newer online changes.');return true;
+}
+function dirty(){changed=true;reviewed='';$('draft-state').textContent='Unsaved draft';saveLocalDraft();}
 function source(){const repo=$('repo').value.trim(),branch=$('branch').value.trim();if(!/^[\w.-]+\/[\w.-]+$/.test(repo)||!branch)throw Error('Enter a valid repository and branch.');return {repo,branch};}
 function assertShape(c){if(!c||C.groups.some(g=>!Array.isArray(c[g])||c[g].some(r=>!r||typeof r!=='object'||Array.isArray(r)))||!c.images||typeof c.images!=='object'||Array.isArray(c.images))throw Error('The catalog has invalid collections. The current draft was kept.');}
 function install(c){c=C.migrate(c,base?.rewards||[]);assertShape(c);content=c;group='quests';selection=content.quests[0]?.id||null;previewQuest=selection;previewChallenge=content.challenges[0]?.id;previewReward=content.reward_levels[0]?.id;renderAll();}
 function lock(value){busy=value;document.querySelector('main').inert=value;for(const id of ['review-button','confirm-publish','reload','import','repo','branch'])$(id).disabled=value;}
 async function load(initial=false){
-  if(busy)return;if(changed&&!confirm('Replace your unsaved draft with online content? Save a draft first if needed.'))return;
+  if(busy)return;if(changed&&!confirm('Replace this draft with online content? Its local recovery copy will be kept.'))return;
+  await draftWrites;
+  recoveredDraft=null;draftId=crypto.randomUUID();
   const src=source();lock(true);say('Downloading the latest content from GitHub…');
   try{
     const snapshot=await ExpoAuth.request({action:'load'}),meta={sha:snapshot.sha},next=snapshot.feed;
@@ -237,6 +266,25 @@ function renderExpoEditor(){
   const input=field(card,row,'expo_name','Expo name');input.maxLength=100;
   const change=input.oninput;input.oninput=()=>{content.expo_name=input.value;change();};
   card.append(el('p','muted','Publish to update the event name in the app. The disclaimer is acknowledged once per expo on each device.'));
+  card.append(el('h3','','Event location and daily draw schedule'));
+  const event=content.draw_event||{name:'SPIEL ESSEN 22. – 25. OKT 2026',venue:'Messe Essen, Messeplatz 1, 45131 Essen',timezone:'Europe/Berlin',organizer_name:'Laserox Design Kft.',organizer_address:'Dózsa György út 105, 1224 Budapest, Hungary',collection:'Winners can collect their prize personally at the expo until the event ends, or have it shipped. Shipping details will be arranged using the email address provided by the winner.',schedule:[{date:'2026-10-22',time:'18:30'},{date:'2026-10-23',time:'18:30'},{date:'2026-10-24',time:'18:30'},{date:'2026-10-25',time:'17:30'}]};
+  const saveEvent=()=>{content.draw_event=event;dirty();renderPreview();};
+  if(!content.draw_event)event.contact_email='info@laserox.net';
+  for(const [key,label] of [['name','Draw event name'],['venue','Venue and address'],['timezone','Time zone (for example Europe/Berlin)']]){
+    const input=field(card,event,key,label);input.maxLength=300;input.oninput=()=>{event[key]=input.value;saveEvent();};
+  }
+  card.append(el('p','muted','Use 24-hour local times. This publishes the timetable; it does not automatically execute draws or reset progress.'));
+  for(const [key,label,type] of [['organizer_name','Legal organizer','text'],['organizer_address','Organizer address','text'],['contact_email','Public privacy and prize email','email'],['collection','Prize collection and shipping','textarea']]){
+    const input=field(card,event,key,label,type);input.maxLength=2000;input.oninput=()=>{event[key]=input.value;saveEvent();};
+  }
+  for(const [index,drawTime] of event.schedule.entries()){
+    const row=el('div','editor-card');
+    for(const [key,label,type] of [['date','Draw date','date'],['time','Draw time (24-hour)','time']]){
+      const input=field(row,drawTime,key,label,type);input.oninput=()=>{drawTime[key]=input.value;saveEvent();};
+    }
+    row.append(button('Remove draw time',()=>{event.schedule.splice(index,1);saveEvent();renderEditor();}));card.append(row);
+  }
+  card.append(button('Add draw time',()=>{event.schedule.push({date:'',time:''});saveEvent();renderEditor();}),button('Save event details to draft',saveEvent));
   card.append(el('h3','','Email signup'),el('p','muted','The signup image opens these daily prizes. Publish to update the phone.'));
   const draw=content.email_draw||{title:'Daily draw prizes',description:'',draw_prizes:[]};
   const saveDraw=()=>{content.email_draw=draw;dirty();renderPreview();};
@@ -311,8 +359,18 @@ $('confirm-publish').onclick=guard(async()=>{
     if(!confirm('Publish this draft to the live app? Your content will be public.'))return;
     say('Uploading content to GitHub…');
     const result=await ExpoAuth.request({action:'publish',sha,content});
-    base=feed;sha=result.sha;changed=false;reviewed='';renderLiveNotifications();$('draft-state').textContent='Published';$('review').close();say('Saved to GitHub. Cloudflare is deploying the updated content automatically. Updated phones receive it on their next content check after deployment finishes.');
+    base=feed;sha=result.sha;changed=false;reviewed='';
+    try{await clearLocalDraft();}catch{say('Published, but the old local backup could not be removed.');}
+    renderLiveNotifications();$('draft-state').textContent='Published';$('review').close();say('Saved to GitHub. Cloudflare is deploying the updated content automatically. Updated phones receive it on their next content check after deployment finishes.');
   }catch(e){$('review').close();throw e;}finally{lock(false);}
 });
 window.addEventListener('beforeunload',e=>{if(changed){e.preventDefault();e.returnValue='';}});
-ExpoAuth.init(guard(async()=>{if(content&&changed){say('Signed in. Your draft has been kept; publishing will check for online changes.');return;}await load(true);}));
+const recoverButton=button('Recover draft',async()=>{if(busy)return;if(!await restoreLocalDraft())say('No draft restored. Local drafts are kept in this browser on this computer.');});
+$('export').after(recoverButton);
+ExpoAuth.init(guard(async()=>{
+  const owner=ExpoAuth.userId;
+  if(draftOwner===owner&&content&&changed){say('Signed in. Your draft has been kept; publishing will check for online changes.');return;}
+  await draftWrites;draftOwner=owner;draftId=crypto.randomUUID();recoveredDraft=null;content=null;base=null;loaded=null;changed=false;
+  try{if(await restoreLocalDraft())return;}catch{say('Local draft recovery is unavailable. Use downloaded backups.');}
+  await load(true);
+}));

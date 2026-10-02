@@ -44,6 +44,25 @@
     const integer=(v,min,max=1000000)=>Number.isSafeInteger(v)&&v>=min&&v<=max;
     if (!c || c.schema_version!==1 || !c.images || typeof c.images!=='object' || Array.isArray(c.images)) return ['Invalid catalog version/images'];
     if(c.expo_name!==undefined&&(typeof c.expo_name!=='string'||!c.expo_name.trim()||c.expo_name.length>100))errors.push('Expo name must contain 1–100 characters');
+    if(c.draw_event!==undefined){
+      const e=c.draw_event;
+      if(!e||typeof e!=='object'||Array.isArray(e))errors.push('Draw event must be an object');
+      else{
+        for(const key of ['name','venue','timezone'])if(typeof e[key]!=='string'||!e[key].trim()||e[key].length>300)errors.push(`Draw event ${key}: enter 1–300 characters`);
+        for(const key of ['organizer_name','organizer_address','collection'])if(e[key]!==undefined&&(typeof e[key]!=='string'||e[key].length>2000))errors.push(`Draw event ${key}: at most 2000 characters`);
+        if(e.contact_email!==undefined&&(typeof e.contact_email!=='string'||e.contact_email.length>254||!/^\S+@\S+\.\S+$/.test(e.contact_email)))errors.push('Draw event: enter a valid public contact email');
+        try{new Intl.DateTimeFormat('en',{timeZone:e.timezone});}catch{errors.push('Draw event: use a valid time zone');}
+        if(!Array.isArray(e.schedule)||e.schedule.length>100)errors.push('Draw schedule: at most 100 times');
+        else{
+          const seen=new Set();
+          for(const item of e.schedule){
+            const stamp=item?.date+'T'+item?.time;
+            if(!item||typeof item!=='object'||typeof item.date!=='string'||typeof item.time!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(item.date)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.time)||!Number.isFinite(Date.parse(stamp+'Z'))||new Date(stamp+'Z').toISOString().slice(0,16)!==stamp)errors.push('Enter a valid draw date and 24-hour time');
+            if(seen.has(stamp))errors.push('Duplicate draw time');seen.add(stamp);
+          }
+        }
+      }
+    }
     if(c.email_draw!==undefined){
       const d=c.email_draw;
       if(!d||typeof d!=='object'||Array.isArray(d))errors.push('Invalid email signup settings');
