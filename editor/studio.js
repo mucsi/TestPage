@@ -6,7 +6,7 @@ let content=null,base=null,sha='',loaded=null,group='quests',selection=null,prev
 const say=t=>$('status').textContent=t;
 const guard=fn=>async(...args)=>{try{await fn(...args);}catch(e){say(e.message||'Something went wrong. Please try again.');}};
 const title=r=>r.title||r.name||r.id;
-const boothLabel=r=>String(r.booth_number||'').trim()?`Booth ${String(r.booth_number).trim()}`:'Booth not set';
+const boothLabel=r=>String(r.booth_number||'').trim()||'Not set';
 const challengeLabel=r=>`${title(r)} · ${boothLabel(r)}`;
 function challengeName(r){const name=el('span','name');name.append(document.createTextNode(title(r)+' · '),el('strong','challenge-booth',boothLabel(r)));return name;}
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;}
