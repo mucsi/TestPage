@@ -6,6 +6,9 @@ let content=null,base=null,sha='',loaded=null,group='quests',selection=null,prev
 const say=t=>$('status').textContent=t;
 const guard=fn=>async(...args)=>{try{await fn(...args);}catch(e){say(e.message||'Something went wrong. Please try again.');}};
 const title=r=>r.title||r.name||r.id;
+const boothLabel=r=>String(r.booth_number||'').trim()?`Booth ${String(r.booth_number).trim()}`:'Booth not set';
+const challengeLabel=r=>`${title(r)} · ${boothLabel(r)}`;
+function challengeName(r){const name=el('span','name');name.append(document.createTextNode(title(r)+' · '),el('strong','challenge-booth',boothLabel(r)));return name;}
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;}
 function button(text,fn,cls='secondary'){const b=el('button',cls,text);b.type='button';b.onclick=guard(fn);return b;}
 let draftOwner='',draftId=crypto.randomUUID(),draftWrites=Promise.resolve(),draftRevision=0,recoveredDraft=null,draftTimer=null,draftPending=false;
@@ -89,7 +92,7 @@ function draggable(node,id){
     const clear=()=>{ghost?.remove();target?.classList.remove('drop-over');node.onpointermove=null;node.onpointerup=null;node.onpointercancel=null;};
     node.onpointermove=move=>{
       if(!ghost&&Math.hypot(move.clientX-startX,move.clientY-startY)<6)return;
-      move.preventDefault();if(!ghost){ghost=el('div','drag-ghost',title(content.challenges.find(r=>r.id===id)));document.body.append(ghost);}
+      move.preventDefault();if(!ghost){ghost=el('div','drag-ghost',challengeLabel(content.challenges.find(r=>r.id===id)));document.body.append(ghost);}
       ghost.style.left=move.clientX+12+'px';ghost.style.top=move.clientY+12+'px';target?.classList.remove('drop-over');target=document.elementFromPoint(move.clientX,move.clientY)?.closest('[data-quest-id]');target?.classList.add('drop-over');
     };
     node.onpointerup=up=>{const drop=document.elementFromPoint(up.clientX,up.clientY)?.closest('[data-quest-id]');const moved=!!ghost;clear();if(moved&&drop){try{M.assign(content,drop.dataset.questId,id,drop.dataset.beforeId||null);dirty();previewQuest=drop.dataset.questId;renderAll();say('Challenge added to this quest. Other quests keep their copy; completion is shared.');}catch(error){say(error.message);}}};
@@ -99,10 +102,10 @@ function draggable(node,id){
 function dropTarget(node,questId,before=null){node.dataset.questId=questId;if(before)node.dataset.beforeId=before;}
 function renderLibrary(){
   const box=$('library');box.replaceChildren();const query=$('search').value.toLocaleLowerCase();
-  for(const r of content.challenges.filter(r=>(title(r)+' '+r.id).toLocaleLowerCase().includes(query))){
+  for(const r of content.challenges.filter(r=>(challengeLabel(r)+' '+r.id).toLocaleLowerCase().includes(query))){
     const card=el('div','library-card');card.setAttribute('aria-current',String(group==='challenges'&&r.id===selection));draggable(card,r.id);
     const copy=el('div','copy'),used=content.quests.filter(q=>q.challenge_ids.includes(r.id)).length;
-    copy.append(el('strong','',title(r)),el('small','',`${r.stars} stars · ${used} quests${r.enabled===false?' · Hidden':''}`));
+    copy.append(el('strong','',title(r)),el('strong','challenge-booth',boothLabel(r)),el('small','',`${r.stars} stars · ${used} quests${r.enabled===false?' · Hidden':''}`));
     card.append(el('span','handle','⠿'),picture(r),copy,button('Edit',()=>choose('challenges',r.id),'plain'));
     box.append(card);
   }
@@ -261,9 +264,9 @@ function renderEditor(){
 function renderAssigned(card,q){
   card.append(el('h3','','Challenges in this quest'),el('p','muted','Drag from the library, or reorder these cards. Removing a card here keeps the challenge in other quests.'));
   const zone=el('div','drop-zone');zone.setAttribute('aria-label',`Challenges in ${q.name}`);dropTarget(zone,q.id);
-  for(const id of q.challenge_ids){const r=content.challenges.find(r=>r.id===id);if(!r)continue;const item=el('div','assigned');draggable(item,id);dropTarget(item,q.id,id);item.append(el('span','handle','⠿'),el('span','name',title(r)),stars(r.stars),button('↑',()=>{const i=q.challenge_ids.indexOf(id);if(i>0){M.assign(content,q.id,id,q.challenge_ids[i-1]);dirty();renderAll();}}),button('Edit',()=>choose('challenges',id)),button('×',()=>{M.unassign(content,q.id,id);dirty();renderAll();}));item.lastChild.setAttribute('aria-label','Remove '+title(r)+' from quest');zone.append(item);}
+  for(const id of q.challenge_ids){const r=content.challenges.find(r=>r.id===id);if(!r)continue;const item=el('div','assigned');draggable(item,id);dropTarget(item,q.id,id);item.append(el('span','handle','⠿'),challengeName(r),stars(r.stars),button('↑',()=>{const i=q.challenge_ids.indexOf(id);if(i>0){M.assign(content,q.id,id,q.challenge_ids[i-1]);dirty();renderAll();}}),button('Edit',()=>choose('challenges',id)),button('×',()=>{M.unassign(content,q.id,id);dirty();renderAll();}));item.lastChild.setAttribute('aria-label','Remove '+challengeLabel(r)+' from quest');zone.append(item);}
   zone.append(el('p','muted tiny','+ Drop a challenge here'));card.append(zone);
-  const pick=el('select');pick.setAttribute('aria-label','Add a challenge to this quest');pick.add(new Option('Choose a challenge to add…',''));for(const r of content.challenges.filter(r=>!q.challenge_ids.includes(r.id)))pick.add(new Option(title(r),r.id));pick.onchange=()=>{if(pick.value){M.assign(content,q.id,pick.value);dirty();renderAll();}};card.append(pick);
+  const pick=el('select');pick.setAttribute('aria-label','Add a challenge to this quest');pick.add(new Option('Choose a challenge to add…',''));for(const r of content.challenges.filter(r=>!q.challenge_ids.includes(r.id)))pick.add(new Option(challengeLabel(r),r.id));pick.onchange=()=>{if(pick.value){M.assign(content,q.id,pick.value);dirty();renderAll();}};card.append(pick);
 }
 function renderSplashEditor(){
   const box=$('editor');box.replaceChildren();
