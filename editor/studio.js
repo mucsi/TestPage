@@ -8,10 +8,18 @@ const guard=fn=>async(...args)=>{try{await fn(...args);}catch(e){say(e.message||
 const title=r=>r.title||r.name||r.id;
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;}
 function button(text,fn,cls='secondary'){const b=el('button',cls,text);b.type='button';b.onclick=guard(fn);return b;}
-let draftOwner='',draftId=crypto.randomUUID(),draftWrites=Promise.resolve(),draftRevision=0,recoveredDraft=null;
+let draftOwner='',draftId=crypto.randomUUID(),draftWrites=Promise.resolve(),draftRevision=0,recoveredDraft=null,draftTimer=null,draftPending=false;
 function saveLocalDraft(){
   if(!content||!draftOwner)return;
-  const revision=++draftRevision;
+  draftPending=true;draftRevision++;clearTimeout(draftTimer);
+  $('draft-state').textContent='Saving draft on this computer…';
+  draftTimer=setTimeout(flushLocalDraft,600);
+}
+function flushLocalDraft(){
+  clearTimeout(draftTimer);draftTimer=null;
+  if(!draftPending||!content||!draftOwner)return draftWrites;
+  draftPending=false;
+  const revision=draftRevision;
   const record=structuredClone({id:draftId,owner:draftOwner,source:loaded||source(),content,base,sha,updated:Date.now()});
   $('draft-state').textContent='Saving draft on this computer…';
   draftWrites=draftWrites.catch(()=>{}).then(()=>ExpoDrafts.save(record)).then(()=>{
@@ -20,13 +28,16 @@ function saveLocalDraft(){
     $('draft-state').textContent='Draft NOT saved — download a backup';
     say('Browser storage is unavailable or full. Use Save draft to download a backup before closing this tab.');
   });
+  return draftWrites;
 }
 async function clearLocalDraft(){
+  clearTimeout(draftTimer);draftTimer=null;draftPending=false;
   await draftWrites;await ExpoDrafts.remove(draftId);
   if(recoveredDraft)await ExpoDrafts.removeIfUnchanged(recoveredDraft.id,recoveredDraft.updated);
   recoveredDraft=null;draftId=crypto.randomUUID();
 }
 async function restoreLocalDraft(){
+  await flushLocalDraft();
   const drafts=await ExpoDrafts.list(draftOwner,source());
   if(!drafts.length)return false;
   const latest=drafts[0];
@@ -42,7 +53,7 @@ function install(c){c=C.migrate(c,base?.rewards||[]);assertShape(c);content=c;gr
 function lock(value){busy=value;document.querySelector('main').inert=value;for(const id of ['review-button','confirm-publish','reload','import','repo','branch'])$(id).disabled=value;}
 async function load(initial=false){
   if(busy)return;if(changed&&!confirm('Replace this draft with online content? Its local recovery copy will be kept.'))return;
-  await draftWrites;
+  await flushLocalDraft();await draftWrites;
   recoveredDraft=null;draftId=crypto.randomUUID();
   const src=source();lock(true);say('Downloading the latest content from GitHub…');
   try{
@@ -120,11 +131,13 @@ function renderBoard(){
     if(boardGroup==='quests')dropTarget(card,row.id);box.append(card);
   }
 }
+let editRenderTimer;
+function renderEditedLists(){clearTimeout(editRenderTimer);editRenderTimer=setTimeout(()=>{renderBoard();if(group==='challenges')renderLibrary();},250);}
 function field(parent,row,key,label,type='text',hint=''){
   const wrap=el('label','',label),input=el(type==='textarea'?'textarea':'input');if(type!=='textarea')input.type=type;
   if(type==='checkbox')input.checked=row[key]!==false;else input.value=row[key]??'';
   if(type==='number'){input.min='0';input.step='1';}
-  input.oninput=()=>{row[key]=type==='checkbox'?input.checked:type==='number'?Number(input.value):input.value;if(['short_description','detailed_description'].includes(key)&&!input.value.trim())delete row[key];dirty();renderBoard();renderPreview();if(group==='challenges')renderLibrary();};wrap.append(input);if(hint)wrap.append(el('small','muted',hint));parent.append(wrap);return input;
+  input.oninput=()=>{row[key]=type==='checkbox'?input.checked:type==='number'?Number(input.value):input.value;if(['short_description','detailed_description'].includes(key)&&!input.value.trim())delete row[key];dirty();renderEditedLists();renderPreview();};wrap.append(input);if(hint)wrap.append(el('small','muted',hint));parent.append(wrap);return input;
 }
 async function upload(file,row){
   const draft=content;
@@ -349,7 +362,7 @@ function renderPreview(){
   previewTimer=setTimeout(()=>{
     if(!previewReady)return;
     previewFrame.contentWindow.postMessage({type:'expo-preview-update',payload:{content,screen:$('preview-screen').value,quest:previewQuest,challenge:previewChallenge,reward:previewReward,progress:$('preview-progress').value}},location.origin);
-  },180);
+  },650);
 }
 window.addEventListener('message',event=>{
   if(event.source!==previewFrame?.contentWindow||event.origin!==location.origin)return;
@@ -365,12 +378,12 @@ $('add-challenge').onclick=guard(()=>{if(!content)return;const row=M.create(cont
 $('add-item').onclick=guard(()=>{if(!content)return;const g=group==='challenges'?'quests':group;const row=M.create(content,g,crypto.randomUUID());dirty();choose(g,row.id);});
 $('preview-screen').onchange=renderPreview;$('preview-width').onchange=renderPreview;
 $('preview-progress').onchange=renderPreview;
-$('export').onclick=guard(()=>{if(!content)throw Error('No draft to save yet.');const a=el('a'),url=URL.createObjectURL(new Blob([JSON.stringify(content,null,2)],{type:'application/json'}));a.href=url;a.download='expo-catalog-draft.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);say('Draft backup downloaded. Online content has not changed.');});
+$('export').onclick=guard(async()=>{if(!content)throw Error('No draft to save yet.');saveLocalDraft();await flushLocalDraft();const a=el('a'),url=URL.createObjectURL(new Blob([JSON.stringify(content,null,2)],{type:'application/json'}));a.href=url;a.download='expo-catalog-draft.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);say('Exact draft downloaded as a backup, including unfinished items. Nothing was published.');});
 $('import').onchange=guard(async()=>{const file=$('import').files[0];if(!file)return;if(file.size>8*1024*1024)throw Error('Draft exceeds 8 MB.');if(changed&&!confirm('Replace your unsaved draft with this backup?'))return;const next=C.normalize(JSON.parse(await file.text()));assertShape(next);install(next);dirty();$('connection').close();say('Backup restored to your draft. Review before publishing.');});
 $('review-button').onclick=guard(async()=>{
   if(!content||busy)return;if(!base||!loaded)throw Error('Load the current online feed in GitHub settings before publishing.');
   if(source().repo!==loaded.repo||source().branch!==loaded.branch)throw Error('Repository changed. Save your draft, then reload the new repository.');
-  lock(true);try{compactImages();await validate();const feed=C.merge(base,content);if(new TextEncoder().encode(JSON.stringify(feed)).length>8*1024*1024)throw Error('The complete feed exceeds 8 MB.');reviewed=JSON.stringify(content);$('review-summary').replaceChildren(...C.groups.map(g=>el('p','',`${names[g]}: ${content[g].length} (${content[g].filter(r=>r.enabled!==false).length} visible)`)));$('confirm-publish').disabled=false;$('review').showModal();}finally{lock(false);}
+  lock(true);try{await validate();const feed=C.merge(base,content);if(new TextEncoder().encode(JSON.stringify(feed)).length>8*1024*1024)throw Error('The complete feed exceeds 8 MB.');reviewed=JSON.stringify(content);$('review-summary').replaceChildren(...C.groups.map(g=>el('p','',`${names[g]}: ${content[g].length} (${content[g].filter(r=>r.enabled!==false).length} visible)`)));$('confirm-publish').disabled=false;$('review').showModal();}catch(e){say('Not ready to publish. Your edits are kept; use Save draft at any time. '+e.message);}finally{lock(false);}
 });
 $('confirm-publish').onclick=guard(async()=>{
   if(busy||!content)return;
@@ -378,7 +391,7 @@ $('confirm-publish').onclick=guard(async()=>{
   if(!base||!loaded)throw Error('Load the current online feed before publishing.');
   const src=source();if(src.repo!==loaded.repo||src.branch!==loaded.branch)throw Error('Repository changed. Reload before publishing.');
   lock(true);$('confirm-publish').disabled=true;try{
-    compactImages();await validate();
+    await validate();
     const feed=C.merge(base,content);
     if(new TextEncoder().encode(JSON.stringify(feed)).length>8*1024*1024)throw Error('The complete feed exceeds 8 MB.');
     if(!confirm('Publish this draft to the live app? Your content will be public.'))return;
@@ -387,15 +400,19 @@ $('confirm-publish').onclick=guard(async()=>{
     base=feed;sha=result.sha;changed=false;reviewed='';
     try{await clearLocalDraft();}catch{say('Published, but the old local backup could not be removed.');}
     renderLiveNotifications();$('draft-state').textContent='Published';$('review').close();say('Saved to GitHub. Cloudflare is deploying the updated content automatically. Updated phones receive it on their next content check after deployment finishes.');
-  }catch(e){$('review').close();throw e;}finally{lock(false);}
+  }catch(e){$('review').close();throw Error('Not published. Your edits are kept; use Save draft at any time. '+e.message);}finally{lock(false);}
 });
-window.addEventListener('beforeunload',e=>{if(changed){e.preventDefault();e.returnValue='';}});
+window.addEventListener('beforeunload',e=>{flushLocalDraft();if(changed){e.preventDefault();e.returnValue='';}});
+window.addEventListener('pagehide',flushLocalDraft);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)flushLocalDraft();});
+document.addEventListener('focusout',flushLocalDraft);
 const recoverButton=button('Recover draft',async()=>{if(busy)return;if(!await restoreLocalDraft())say('No draft restored. Local drafts are kept in this browser on this computer.');});
+$('export').title='Save exactly what you typed, including unfinished items. Saves on this computer and downloads a JSON backup. Does not publish.';
 $('export').after(recoverButton);
 ExpoAuth.init(guard(async()=>{
   const owner=ExpoAuth.userId;
   if(draftOwner===owner&&content&&changed){say('Signed in. Your draft has been kept; publishing will check for online changes.');return;}
-  await draftWrites;draftOwner=owner;draftId=crypto.randomUUID();recoveredDraft=null;content=null;base=null;loaded=null;changed=false;
+  await flushLocalDraft();await draftWrites;draftOwner=owner;draftId=crypto.randomUUID();recoveredDraft=null;content=null;base=null;loaded=null;changed=false;
   try{if(await restoreLocalDraft())return;}catch{say('Local draft recovery is unavailable. Use downloaded backups.');}
   await load(true);
 }));

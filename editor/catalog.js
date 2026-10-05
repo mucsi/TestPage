@@ -129,7 +129,7 @@
       if(!/^quest([1-9]|1[0-9]|20)$/.test(q.analytics_key)||questKeys.has(q.analytics_key)) errors.push(`${q.id}: use unique quest1–quest20 analytics keys`);
       questKeys.add(q.analytics_key);
       const available=q.challenge_ids.reduce((sum,id)=>sum+(ids.challenges.get(id).enabled===false?0:ids.challenges.get(id).stars),0);
-      if(!integer(q.required_stars,1)||q.enabled!==false&&q.required_stars>available) errors.push(`${q.id}: unreachable star target`);
+      if(!integer(q.required_stars,1)||q.enabled!==false&&q.required_stars>available) errors.push(`Quest "${q.name||q.title||q.id}": target is ${q.required_stars} stars, but enabled challenges currently award ${available}. Finish adding challenges or edit the target before publishing. Unfinished drafts can still be saved.`);
       for(const field of ['completion_bonus_stars','perfection_bonus_stars']) if(field in q&&!integer(q[field],0)) errors.push(`${q.id}: invalid ${field}`);
     }
     for(const r of c.reward_levels || []) {
