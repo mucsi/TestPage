@@ -118,7 +118,7 @@
       if(row.booth_number!==undefined&&(typeof row.booth_number!=='string'||row.booth_number.length>24)) errors.push(`${row.id}: booth_number must be text up to 24 characters`);
       if(typeof row.value!=='string'||!row.value.trim()||row.value!==row.value.trim()||codes.has(row.value)) errors.push(`${row.id}: invalid/duplicate QR value`);
       codes.add(row.value);
-      if(!integer(row.stars,1,5)) errors.push(`${row.id}: stars must be 1–5`);
+      if(!integer(row.stars,1,10)) errors.push(`${row.id}: stars must be 1–10`);
       if(!/^challenge_(00[1-9]|0[1-9][0-9]|100)$/.test(row.analytics_key)||analytics.has(row.analytics_key)) errors.push(`${row.id}: use unique challenge_001–challenge_100 analytics keys`);
       analytics.add(row.analytics_key);
     }
