@@ -9,6 +9,7 @@ const title=r=>r.title||r.name||r.id;
 const boothLabel=r=>String(r.booth_number||'').trim()||'Not set';
 const challengeLabel=r=>`${title(r)} · ${boothLabel(r)}`;
 function challengeName(r){const name=el('span','name');name.append(document.createTextNode(title(r)+' · '),el('strong','challenge-booth',boothLabel(r)));return name;}
+function challengeStatus(r){const active=r.enabled!==false,b=button(active?'Enabled':'Disabled',()=>{r.enabled=r.enabled===false;dirty();renderAll();});b.setAttribute('aria-label','Enable challenge '+challengeLabel(r));b.setAttribute('aria-pressed',String(active));b.title='Click to '+(active?'disable':'enable')+' this challenge in every quest. Publish to update the app.';return b;}
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;}
 function button(text,fn,cls='secondary'){const b=el('button',cls,text);b.type='button';b.onclick=guard(fn);return b;}
 let draftOwner='',draftId=crypto.randomUUID(),draftWrites=Promise.resolve(),draftRevision=0,recoveredDraft=null,draftTimer=null,draftPending=false;
@@ -105,7 +106,7 @@ function renderLibrary(){
   for(const r of content.challenges.filter(r=>(challengeLabel(r)+' '+r.id).toLocaleLowerCase().includes(query))){
     const card=el('div','library-card');card.setAttribute('aria-current',String(group==='challenges'&&r.id===selection));draggable(card,r.id);
     const copy=el('div','copy'),used=content.quests.filter(q=>q.challenge_ids.includes(r.id)).length;
-    copy.append(el('strong','',title(r)),el('strong','challenge-booth',boothLabel(r)),el('small','',`${r.stars} stars · ${used} quests${r.enabled===false?' · Hidden':''}`));
+    copy.append(el('strong','',title(r)),el('strong','challenge-booth',boothLabel(r)),el('small','',`${r.stars} stars · ${used} quests`),challengeStatus(r));
     card.append(el('span','handle','⠿'),picture(r),copy,button('Edit',()=>choose('challenges',r.id),'plain'));
     box.append(card);
   }
@@ -197,7 +198,8 @@ function renderEditor(){
       label.append(input);card.append(label,el('p','muted','This card has no lock, star price or claim button. Tap it in the phone preview to see the entry count and prizes. Use the description for draw dates and other details.'));
     }
   }
-  const enabled=field(card,row,'enabled',group==='notifications'?'Enable notification':'Visible in the app','checkbox');
+  const enabled=field(card,row,'enabled',group==='notifications'?'Enable notification':group==='challenges'?'Challenge enabled':'Visible in the app','checkbox');
+  if(group==='challenges')card.append(el('small','muted','Applies to this challenge in every quest. Disabled challenges cannot award stars. Publish to update the app.'));
   if(group==='notifications'){
     enabled.checked=row.enabled!==false&&row.publication_status!=='draft';
     enabled.oninput=()=>{row.enabled=enabled.checked;row.publication_status='live';dirty();renderBoard();renderPreview();};
@@ -264,7 +266,7 @@ function renderEditor(){
 function renderAssigned(card,q){
   card.append(el('h3','','Challenges in this quest'),el('p','muted','Drag from the library, or reorder these cards. Removing a card here keeps the challenge in other quests.'));
   const zone=el('div','drop-zone');zone.setAttribute('aria-label',`Challenges in ${q.name}`);dropTarget(zone,q.id);
-  for(const id of q.challenge_ids){const r=content.challenges.find(r=>r.id===id);if(!r)continue;const item=el('div','assigned');draggable(item,id);dropTarget(item,q.id,id);item.append(el('span','handle','⠿'),challengeName(r),stars(r.stars),button('↑',()=>{const i=q.challenge_ids.indexOf(id);if(i>0){M.assign(content,q.id,id,q.challenge_ids[i-1]);dirty();renderAll();}}),button('Edit',()=>choose('challenges',id)),button('×',()=>{M.unassign(content,q.id,id);dirty();renderAll();}));item.lastChild.setAttribute('aria-label','Remove '+challengeLabel(r)+' from quest');zone.append(item);}
+  for(const id of q.challenge_ids){const r=content.challenges.find(r=>r.id===id);if(!r)continue;const item=el('div','assigned');draggable(item,id);dropTarget(item,q.id,id);const name=challengeName(r);name.append(document.createTextNode(' '),challengeStatus(r));item.append(el('span','handle','⠿'),name,stars(r.stars),button('↑',()=>{const i=q.challenge_ids.indexOf(id);if(i>0){M.assign(content,q.id,id,q.challenge_ids[i-1]);dirty();renderAll();}}),button('Edit',()=>choose('challenges',id)),button('×',()=>{M.unassign(content,q.id,id);dirty();renderAll();}));item.lastChild.setAttribute('aria-label','Remove '+challengeLabel(r)+' from quest');zone.append(item);}
   zone.append(el('p','muted tiny','+ Drop a challenge here'));card.append(zone);
   const pick=el('select');pick.setAttribute('aria-label','Add a challenge to this quest');pick.add(new Option('Choose a challenge to add…',''));for(const r of content.challenges.filter(r=>!q.challenge_ids.includes(r.id)))pick.add(new Option(challengeLabel(r),r.id));pick.onchange=()=>{if(pick.value){M.assign(content,q.id,pick.value);dirty();renderAll();}};card.append(pick);
 }
