@@ -1,0 +1,2 @@
+.star-summary{display:flex;flex-wrap:wrap;align-items:center;gap:12px 30px;padding:14px 24px;background:white;border-bottom:1px solid var(--line)}
+.star-summary:empty{display:none}.star-metric{display:flex;align-items:center;gap:12px}.star-metric>span:first-child{font-weight:650}.star-metric .star-line{font-size:23px}.star-summary>p{flex-basis:100%;margin:0}

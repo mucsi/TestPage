@@ -20,5 +20,17 @@
     if(g==='notifications'&&!source)Object.assign(row,{title:'New announcement',description:'',publication_status:'live',publish_mode:'now'});
     c[g].push(row);return row;
   }
-  const api={assign,unassign,create,freeKey};if(typeof module!=='undefined')module.exports=api;root.ExpoEditor=api;
+  function starSummary(c){
+    const amount=v=>Number.isSafeInteger(v)&&v>=0?v:0;
+    const enabled=new Map((c.challenges||[]).filter(r=>r.enabled!==false).map(r=>[r.id,r]));
+    let challenges=0,completion=0,perfection=0;
+    for(const row of enabled.values())challenges+=amount(row.stars);
+    for(const quest of c.quests||[]){
+      if(quest.enabled===false)continue;
+      completion+=amount(quest.completion_bonus_stars??0);
+      if((quest.challenge_ids||[]).some(id=>enabled.has(id)))perfection+=amount(quest.perfection_bonus_stars??1);
+    }
+    return {challenges,completion,perfection,bonuses:completion+perfection,total:challenges+completion+perfection};
+  }
+  const api={assign,unassign,create,freeKey,starSummary};if(typeof module!=='undefined')module.exports=api;root.ExpoEditor=api;
 })(globalThis);

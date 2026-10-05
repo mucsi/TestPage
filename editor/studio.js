@@ -136,7 +136,7 @@ function renderBoard(){
   }
 }
 let editRenderTimer;
-function renderEditedLists(){clearTimeout(editRenderTimer);editRenderTimer=setTimeout(()=>{renderBoard();if(group==='challenges')renderLibrary();},250);}
+function renderEditedLists(){clearTimeout(editRenderTimer);editRenderTimer=setTimeout(()=>{renderStarSummary();renderBoard();if(group==='challenges')renderLibrary();},250);}
 function field(parent,row,key,label,type='text',hint=''){
   const wrap=el('label','',label),input=el(type==='textarea'?'textarea':'input');if(type!=='textarea')input.type=type;
   if(type==='checkbox')input.checked=row[key]!==false;else input.value=row[key]??'';
@@ -374,7 +374,16 @@ window.addEventListener('message',event=>{
   if(event.data?.type==='expo-preview-ready'){previewReady=true;renderPreview();}
   if(event.data?.type==='expo-preview-result')$('preview-status').textContent=event.data.error?'Last valid preview retained: '+event.data.error:'Rendered by the app itself. Camera and device status bars are simulated; progress is preview-only.';
 });
-function renderAll(){if(!content)return;renderLibrary();renderBoard();renderEditor();renderPreview();}
+function renderStarSummary(){
+  if(!content)return;
+  const summary=M.starSummary(content),box=$('star-summary');
+  box.replaceChildren();
+  for(const [label,value] of [['Total available',summary.total],['Challenges only',summary.challenges],['Quest bonuses',summary.bonuses]]){
+    const metric=el('div','star-metric');metric.append(el('span','',label),stars(value));box.append(metric);
+  }
+  box.append(el('p','muted tiny',`Current draft · enabled items only · shared challenges counted once. Quest bonuses: ${summary.completion} completion + ${summary.perfection} perfection. Totals follow the app’s maximum-star rules; unfinished quests must be completed before publishing.`));
+}
+function renderAll(){if(!content)return;renderStarSummary();renderLibrary();renderBoard();renderEditor();renderPreview();}
 async function validate(){const errors=C.validate(content);if(errors.length)throw Error(errors.join('\n'));let pixels=0;for(const data of Object.values(content.images)){const img=new Image();img.src=data;await img.decode();if(!img.width||!img.height||img.width>2048||img.height>2048)throw Error('An image exceeds 2048 × 2048. Replace it with a new upload.');pixels+=img.width*img.height;if(pixels>16*1024*1024)throw Error('Artwork exceeds the offline memory budget. Use smaller images.');}}
 function compactImages(){const used=new Set([...C.groups.flatMap(g=>content[g].map(r=>String(r.artwork||'').replace(/^asset:\/\//,''))),String(content.email_draw?.artwork||'').replace(/^asset:\/\//,''),String(content.splash?.artwork||'').replace(/^asset:\/\//,'')]);for(const key of Object.keys(content.images))if(!used.has(key))delete content.images[key];}
 $('settings').onclick=()=>$('connection').showModal();$('reload').onclick=guard(()=>load());$('search').oninput=renderLibrary;
