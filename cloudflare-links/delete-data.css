@@ -1,0 +1,4 @@
+.request { display: inline-block; background: #b90918; color: white; padding: 14px 22px; border-radius: 12px; font-weight: 700; text-decoration: none; }
+li { line-height: 1.65; margin: .5rem 0; }
+.notice { background: #edf6ff; padding: 16px 20px; border-radius: 14px; }
+h1 { margin-top: 1.5rem; }
