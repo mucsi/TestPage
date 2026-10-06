@@ -3,7 +3,7 @@ window.ExpoAuth=(()=>{
   let session=null,local=false,onReady=null;
   const byId=id=>document.getElementById(id),config=window.EXPO_AUTH_CONFIG||{};
   const message=text=>byId('auth-status').textContent=text;
-  function gate(){byId('auth-gate').hidden=false;document.querySelector('main').inert=true;document.querySelector('header').inert=true;}
+  function gate(){window.dispatchEvent(new Event('expo-auth-locked'));byId('auth-gate').hidden=false;document.querySelector('main').inert=true;document.querySelector('header').inert=true;}
   function unlock(){byId('auth-gate').hidden=true;document.querySelector('main').inert=false;document.querySelector('header').inert=false;}
   async function auth(path,body,token){
     const response=await fetch(config.url+'/auth/v1/'+path,{method:'POST',signal:AbortSignal.timeout(20000),headers:{apikey:config.key,'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined});
@@ -35,11 +35,11 @@ window.ExpoAuth=(()=>{
         if(!config.url?.startsWith('https://')||!config.key)throw Error('Organizer authentication is not configured.');
         const data=await auth('token?grant_type=password',{email:byId('login-email').value.trim(),password:byId('login-password').value});
         byId('login-password').value='';session={userId:data.user.id,access:data.access_token,refresh:data.refresh_token,expires:Date.now()+(data.expires_in-60)*1000};local=false;
-        await request({action:'load'});unlock();message('');await onReady();
+        await request(config.participantsPage?{action:'participants',search:'',page:0}:{action:'load'});unlock();message('');await onReady();
       }catch(e){session=null;message(e.message);}finally{byId('login-password').value='';submit.disabled=false;}
     };
     byId('local-preview').onclick=async()=>{local=true;session=null;unlock();await onReady();};
-    byId('signout').onclick=async()=>{const access=session?.access;session=null;local=false;gate();message('Signed out. Your unpublished draft stays in this tab until you close it.');if(access)try{await auth('logout?scope=local',null,access);}catch{/* local state is already cleared */}};
+    byId('signout').onclick=async()=>{const access=session?.access;session=null;local=false;window.dispatchEvent(new Event('expo-signout'));gate();message('Signed out.');if(access)try{await auth('logout?scope=local',null,access);}catch{/* local state is already cleared */}};
   }
   return {init,request,get local(){return local;},get userId(){return local?'local-preview':session?.userId||'';}};
 })();
