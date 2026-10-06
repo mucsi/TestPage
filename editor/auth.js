@@ -35,7 +35,7 @@ window.ExpoAuth=(()=>{
         if(!config.url?.startsWith('https://')||!config.key)throw Error('Organizer authentication is not configured.');
         const data=await auth('token?grant_type=password',{email:byId('login-email').value.trim(),password:byId('login-password').value});
         byId('login-password').value='';session={userId:data.user.id,access:data.access_token,refresh:data.refresh_token,expires:Date.now()+(data.expires_in-60)*1000};local=false;
-        await request(config.participantsPage?{action:'participants',search:'',page:0}:{action:'load'});unlock();message('');await onReady();
+        const initial=await request(config.participantsPage?{action:'participants',search:'',page:0}:{action:'load'});unlock();message('');await onReady(config.participantsPage?initial:undefined);
       }catch(e){session=null;message(e.message);}finally{byId('login-password').value='';submit.disabled=false;}
     };
     byId('local-preview').onclick=async()=>{local=true;session=null;unlock();await onReady();};

@@ -15,7 +15,7 @@ function button(text,fn,cls='secondary'){const b=el('button',cls,text);b.type='b
 let draftOwner='',draftId=crypto.randomUUID(),draftWrites=Promise.resolve(),draftRevision=0,recoveredDraft=null,draftTimer=null,draftPending=false;
 function saveLocalDraft(){
   if(!content||!draftOwner)return;
-  draftPending=true;draftRevision++;clearTimeout(draftTimer);
+  draftPending=true;clearTimeout(draftTimer);
   $('draft-state').textContent='Saving draft on this computer…';
   draftTimer=setTimeout(flushLocalDraft,600);
 }
@@ -50,7 +50,7 @@ async function restoreLocalDraft(){
   // Keep the original SHA: publishing must detect intervening remote edits.
   install(latest.content);dirty();say('Local draft restored. Publishing will check for newer online changes.');return true;
 }
-function dirty(){changed=true;reviewed='';$('draft-state').textContent='Unsaved draft';saveLocalDraft();}
+function dirty(){draftRevision++;changed=true;reviewed='';$('draft-state').textContent='Unsaved draft';saveLocalDraft();}
 function source(){const repo=$('repo').value.trim(),branch=$('branch').value.trim();if(!/^[\w.-]+\/[\w.-]+$/.test(repo)||!branch)throw Error('Enter a valid repository and branch.');return {repo,branch};}
 function assertShape(c){if(!c||C.groups.some(g=>!Array.isArray(c[g])||c[g].some(r=>!r||typeof r!=='object'||Array.isArray(r)))||!c.images||typeof c.images!=='object'||Array.isArray(c.images))throw Error('The catalog has invalid collections. The current draft was kept.');}
 function install(c){c=C.migrate(c,base?.rewards||[]);assertShape(c);content=c;group='quests';selection=content.quests[0]?.id||null;previewQuest=selection;previewChallenge=content.challenges[0]?.id;previewReward=content.reward_levels[0]?.id;renderAll();}
@@ -143,8 +143,13 @@ function field(parent,row,key,label,type='text',hint=''){
   if(type==='number'){input.min='0';input.step='1';}
   input.oninput=()=>{row[key]=type==='checkbox'?input.checked:type==='number'?Number(input.value):input.value;if(['short_description','detailed_description'].includes(key)&&!input.value.trim())delete row[key];dirty();renderEditedLists();renderPreview();};wrap.append(input);if(hint)wrap.append(el('small','muted',hint));parent.append(wrap);return input;
 }
+let pendingUploads=0;
 async function upload(file,row){
-  const draft=content;
+  if(!file)return;
+  if(busy)throw Error('Wait for the current operation before uploading.');
+  const draft=content,revision=++draftRevision;
+  pendingUploads++;
+  try{
   const promo=content.partners.includes(row),ratio=promo&&row.banner_type!=='full_image'?1:null;
   if(!file)return;if(!['image/png','image/jpeg'].includes(file.type)||file.size>12*1024*1024)throw Error('Choose a PNG or JPEG image up to 12 MB.');
   const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('Could not read image.'));reader.readAsDataURL(file);});
@@ -153,8 +158,9 @@ async function upload(file,row){
   const canvas=document.createElement('canvas'),scale=Math.min(1,768/Math.max(img.width,img.height));canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
   const optimized=canvas.toDataURL(file.type,file.type==='image/jpeg'?.88:undefined);if(optimized.length>3*1024*1024)throw Error('Image is still too large. Try a smaller JPEG.');
   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(optimized));const key=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
-  if(content!==draft)throw Error('The draft changed while reading the image. Upload it again.');
+  if(busy||content!==draft||revision!==draftRevision||!(C.groups.some(g=>content[g]?.includes(row))||content.splash===row||content.email_draw===row))throw Error('The draft changed while reading the image. Upload it again.');
   content.images[key]=optimized;row.artwork='asset://'+key;dirty();renderAll();say('Image added to the draft and resized for mobile. It will upload when you publish.');
+  }finally{pendingUploads--;}
 }
 function deleteCatalogItem(collection,id){
   if(busy||!content||!['quests','reward_levels','partners'].includes(collection))return;
@@ -384,8 +390,9 @@ function renderStarSummary(){
   box.append(el('p','muted tiny',`Current draft · enabled items only · shared challenges counted once. Quest bonuses: ${summary.completion} completion + ${summary.perfection} perfection. Totals follow the app’s maximum-star rules; unfinished quests must be completed before publishing.`));
 }
 function renderAll(){if(!content)return;renderStarSummary();renderLibrary();renderBoard();renderEditor();renderPreview();}
-async function validate(){const errors=C.validate(content);if(errors.length)throw Error(errors.join('\n'));let pixels=0;for(const data of Object.values(content.images)){const img=new Image();img.src=data;await img.decode();if(!img.width||!img.height||img.width>2048||img.height>2048)throw Error('An image exceeds 2048 × 2048. Replace it with a new upload.');pixels+=img.width*img.height;if(pixels>16*1024*1024)throw Error('Artwork exceeds the offline memory budget. Use smaller images.');}}
-function compactImages(){const used=new Set([...C.groups.flatMap(g=>content[g].map(r=>String(r.artwork||'').replace(/^asset:\/\//,''))),String(content.email_draw?.artwork||'').replace(/^asset:\/\//,''),String(content.splash?.artwork||'').replace(/^asset:\/\//,'')]);for(const key of Object.keys(content.images))if(!used.has(key))delete content.images[key];}
+async function validate(snapshot=content){const errors=C.validate(snapshot);if(errors.length)throw Error(errors.join('\n'));let pixels=0;for(const data of Object.values(snapshot.images)){const img=new Image();img.src=data;await img.decode();if(!img.width||!img.height||img.width>2048||img.height>2048)throw Error('An image exceeds 2048 × 2048. Replace it with a new upload.');pixels+=img.width*img.height;if(pixels>16*1024*1024)throw Error('Artwork exceeds the offline memory budget. Use smaller images.');}}
+function compactImages(){return C.compactImages(content);}
+function assertDraftRevision(draft,revision){if(content!==draft||draftRevision!==revision)throw Error('The draft changed during validation. Review and publish again.');}
 $('settings').onclick=()=>$('connection').showModal();$('reload').onclick=guard(()=>load());$('search').oninput=renderLibrary;
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{group=b.dataset.group;selection=content?.[group]?.[0]?.id;$('preview-screen').value=group==='splash'?'splash':group==='expo'?'disclaimer':'home';renderAll();});
 $('add-challenge').onclick=guard(()=>{if(!content)return;const row=M.create(content,'challenges',crypto.randomUUID());dirty();choose('challenges',row.id);});
@@ -395,22 +402,28 @@ $('preview-progress').onchange=renderPreview;
 $('export').onclick=guard(async()=>{if(!content)throw Error('No draft to save yet.');saveLocalDraft();await flushLocalDraft();const a=el('a'),url=URL.createObjectURL(new Blob([JSON.stringify(content,null,2)],{type:'application/json'}));a.href=url;a.download='expo-catalog-draft.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);say('Exact draft downloaded as a backup, including unfinished items. Nothing was published.');});
 $('import').onchange=guard(async()=>{const file=$('import').files[0];if(!file)return;if(file.size>8*1024*1024)throw Error('Draft exceeds 8 MB.');if(changed&&!confirm('Replace your unsaved draft with this backup?'))return;const next=C.normalize(JSON.parse(await file.text()));assertShape(next);install(next);dirty();$('connection').close();say('Backup restored to your draft. Review before publishing.');});
 $('review-button').onclick=guard(async()=>{
+  if(pendingUploads)throw Error('Wait for images to finish processing before reviewing.');
   if(!content||busy)return;if(!base||!loaded)throw Error('Load the current online feed in GitHub settings before publishing.');
   if(source().repo!==loaded.repo||source().branch!==loaded.branch)throw Error('Repository changed. Save your draft, then reload the new repository.');
-  lock(true);try{await validate();const feed=C.merge(base,content);if(new TextEncoder().encode(JSON.stringify(feed)).length>8*1024*1024)throw Error('The complete feed exceeds 8 MB.');reviewed=JSON.stringify(content);$('review-summary').replaceChildren(...C.groups.map(g=>el('p','',`${names[g]}: ${content[g].length} (${content[g].filter(r=>r.enabled!==false).length} visible)`)));$('confirm-publish').disabled=false;$('review').showModal();}catch(e){say('Not ready to publish. Your edits are kept; use Save draft at any time. '+e.message);}finally{lock(false);}
+  lock(true);const draft=content,revision=draftRevision,snapshot=compactImages();try{await validate(snapshot);assertDraftRevision(draft,revision);const feed=C.merge(base,snapshot);if(new TextEncoder().encode(JSON.stringify(feed)).length>8*1024*1024)throw Error('The complete feed exceeds 8 MB.');reviewed=JSON.stringify(content);$('review-summary').replaceChildren(...C.groups.map(g=>el('p','',`${names[g]}: ${content[g].length} (${content[g].filter(r=>r.enabled!==false).length} visible)`)));$('confirm-publish').disabled=false;$('review').showModal();}catch(e){say('Not ready to publish. Your edits are kept; use Save draft at any time. '+e.message);}finally{lock(false);}
 });
 $('confirm-publish').onclick=guard(async()=>{
+  if(pendingUploads)throw Error('Wait for images to finish processing before publishing.');
   if(busy||!content)return;
   if(ExpoAuth.local)throw Error('Local preview cannot publish. Sign out and use your organizer login.');
   if(!base||!loaded)throw Error('Load the current online feed before publishing.');
   const src=source();if(src.repo!==loaded.repo||src.branch!==loaded.branch)throw Error('Repository changed. Reload before publishing.');
   lock(true);$('confirm-publish').disabled=true;try{
-    await validate();
-    const feed=C.merge(base,content);
+    const draft=content,revision=draftRevision,snapshot=compactImages();
+    await validate(snapshot);
+    assertDraftRevision(draft,revision);
+    const feed=C.merge(base,snapshot);
     if(new TextEncoder().encode(JSON.stringify(feed)).length>8*1024*1024)throw Error('The complete feed exceeds 8 MB.');
     if(!confirm('Publish this draft to the live app? Your content will be public.'))return;
     say('Uploading content to GitHub…');
-    const result=await ExpoAuth.request({action:'publish',sha,content});
+    const result=await ExpoAuth.request({action:'publish',sha,content:feed.content});
+    // A late edit must remain recoverable even if this snapshot was published.
+    if(content!==draft||draftRevision!==revision){base=feed;sha=result.sha;reviewed='';saveLocalDraft();$('review').close();say('Snapshot published. Newer draft edits are still unpublished.');return;}
     base=feed;sha=result.sha;changed=false;reviewed='';
     try{await clearLocalDraft();}catch{say('Published, but the old local backup could not be removed.');}
     renderLiveNotifications();$('draft-state').textContent='Published';$('review').close();say('Saved to GitHub. Cloudflare is deploying the updated content automatically. Updated phones receive it on their next content check after deployment finishes.');

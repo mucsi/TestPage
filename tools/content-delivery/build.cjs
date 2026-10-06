@@ -1,10 +1,15 @@
 // Build an atomic Cloudflare Pages snapshot from the editor's existing public feed.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+// The application repo keeps the editor under tools; the publishing repo uses /editor.
+const catalogPath=path.join(__dirname,'../content-admin/catalog.js');
+const {compactImages,validateImage}=require(fs.existsSync(catalogPath)?catalogPath:path.join(__dirname,'../../editor/catalog.js'));
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 function build(feed){
   if(!feed?.content?.images||!Array.isArray(feed.rewards)||typeof feed.CurrentExpoID!=='string')throw Error('Invalid source feed');
+  feed={...feed,content:compactImages(feed.content)};
   const compact=structuredClone(feed),files=new Map();
   for(const [id,uri] of Object.entries(feed.content.images)){
+    const error=validateImage(uri);if(error)throw Error('Invalid image '+id+': '+error);
     const match=typeof uri==='string'&&uri.match(/^data:image\/(png|jpeg);base64,([A-Za-z0-9+/]+=*)$/);
     if(!match)throw Error('Invalid image '+id);
     const bytes=Buffer.from(match[2],'base64'),sha256=hash(bytes);

@@ -4,10 +4,10 @@ window.EXPO_AUTH_CONFIG.participantsPage=true;
   const el=id=>document.getElementById(id);let page=0,total=0,search='',generation=0,busy=false;
   function controls(){el('previous').disabled=busy||page===0;el('next').disabled=busy||(page+1)*50>=total;el('refresh').disabled=busy;}
   const number=value=>value===null||value===undefined?'—':Number(value).toLocaleString(undefined,{maximumFractionDigits:2});
-  async function load(){
+  async function load(initial){
     const version=++generation;busy=true;controls();el('participants-body').replaceChildren();el('page-label').textContent='';el('progress-status').textContent='Loading participants…';
     try{
-      const data=await ExpoAuth.request({action:'participants',search,page});if(version!==generation)return;
+      const data=initial||await ExpoAuth.request({action:'participants',search,page});if(version!==generation)return;
       total=data.total;
       for(const row of data.rows){const tr=document.createElement('tr');
         for(const value of [row.user_id,row.username||'—',row.email||'Not provided',row.notifications_allowed===true?'Allowed':row.notifications_allowed===false?'Not allowed':'Unknown',number(row.current_balance),number(row.daily_draw_seats)+(row.email?'':' · no email'),number(row.max_star_gaining_speed)]){const td=document.createElement('td');td.textContent=value;tr.append(td);}el('participants-body').append(tr);}
