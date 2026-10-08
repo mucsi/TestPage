@@ -2,32 +2,43 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex">
-<title>Expo Quest · Open your challenge</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Explore the expo, scan challenges and collect stars with Laserox Expo Quest. Download the app and start your adventure.">
+<meta name="theme-color" content="#ffffff">
+<title>Expo Quest · Explore. Scan. Collect.</title>
+<link rel="icon" type="image/png" href="/quest-icon.png">
 <link rel="stylesheet" href="/style.css">
 <script src="/redirect.js" defer></script>
 </head>
 <body>
-<header><a class="brand" href="/" aria-label="Expo Quest home"><img src="/logo.png" alt="Expo Quest by LASEROX" width="500" height="140"></a></header>
+<header class="topbar"><div class="header-inner">
+<a class="brand" href="/" aria-label="Expo Quest home"><img src="/quest-icon.png" alt="" width="56" height="56"><span>Expo Quest<small>BY LASEROX</small></span></a>
+<a class="help" href="/support" aria-label="Help and support">?</a>
+</div></header>
 <main>
-<div class="art"><img src="/welcome.png" alt="An adventure map, a QR scanner and collectible stars" width="512" height="341"></div>
+<section class="hero" aria-labelledby="welcome-title">
+<div class="art"><img src="/quest-banner.png" alt="Expo Quest by LASEROX — a parchment scroll sealed with a purple ribbon" width="1024" height="500" fetchpriority="high"></div>
 <div class="intro">
-<p class="eyebrow">EXPLORE. SCAN. COLLECT.</p>
-<h1>Your adventure starts here</h1>
-<p id="message" role="status">Get Expo Quest to scan challenges, collect stars and unlock rewards.</p>
-<nav aria-label="Download Expo Quest">
-<a href="https://apps.apple.com/app/id6809481571"><span><small>Download on the</small>App Store</span><span aria-hidden="true">↗</span></a>
-<a href="https://play.google.com/store/apps/details?id=com.laserox.quest"><span><small>Get it on</small>Google Play</span><span aria-hidden="true">↗</span></a>
+<p class="eyebrow"><span aria-hidden="true">✦</span> YOUR EXPO. YOUR ADVENTURE.</p>
+<h1 id="welcome-title">Explore. Scan.<br> <span>Collect.</span></h1>
+<p id="message" role="status">Turn your expo visit into a quest. Complete challenges, collect stars and discover rewards.</p>
+<nav class="downloads" aria-label="Download Expo Quest">
+<a id="app-store" href="https://apps.apple.com/app/id6809481571"><span><small>Download on the</small>App Store</span><span aria-hidden="true">↗</span></a>
+<a id="play-store" href="https://play.google.com/store/apps/details?id=com.laserox.quest"><span><small>Get it on</small>Google Play</span><span aria-hidden="true">↗</span></a>
 </nav>
-<p class="hint">After installing, open Expo Quest and scan the challenge QR again. Store availability may depend on your country or testing access.</p>
+<p class="hint">Scanned a challenge QR? After installing, open Expo Quest and scan it again. Store availability depends on release status and your region.</p>
 </div>
-<section class="steps" aria-label="How to play">
-<article><span class="number">01</span><div><h2>Explore &amp; play</h2><p>Find challenges around the expo and scan their QR codes.</p></div></article>
-<article><span class="number">02</span><div><h2>Collect stars</h2><p>Complete challenges and quests to grow your balance.</p></div></article>
-<article><span class="number">03</span><div><h2>Unlock rewards</h2><p>Visit the LASEROX booth to claim the rewards you earn.</p></div></article>
 </section>
+<section class="how-to" aria-labelledby="how-title">
+<h2 id="how-title"><span aria-hidden="true">✦</span> YOUR NEXT QUEST STARTS HERE</h2>
+<div class="steps">
+<article><img src="/scan.png" width="76" height="76" alt=""><div><span class="step-label">01 · EXPLORE</span><h3>Find your next challenge</h3><p>Visit participating booths, complete a task and scan its QR code in the app.</p></div></article>
+<article><img src="/explore.png" width="76" height="76" alt=""><div><span class="step-label">02 · COLLECT</span><h3>Make every star count</h3><p>Earn stars from challenges and collect bonus stars as you complete quests.</p></div></article>
+<article><img src="/redeem.png" width="76" height="76" alt=""><div><span class="step-label">03 · ENJOY</span><h3>Discover your rewards</h3><p>Browse available rewards in the app and ask LASEROX staff to approve your claim.</p></div></article>
+</div>
+</section>
+<aside class="attendance"><strong>Made for exploring together.</strong> You need to be at the participating expo to complete challenges and claim rewards. Check the app for the current event and daily-draw details.</aside>
 </main>
-<footer>Powered by <strong>LASEROX</strong></footer>
+<footer><nav aria-label="Useful links"><a href="/support">Help &amp; support</a><a href="/privacy">Privacy policy</a><a href="/delete-data">Data deletion</a></nav><p>Powered by <strong>LASEROX</strong></p></footer>
 </body>
 </html>
