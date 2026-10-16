@@ -12,6 +12,10 @@
   const apple = /iPhone|iPad|iPod/i.test(ua) ||
     (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
   const android = /Android/i.test(ua);
+  if (apple && window.EXPO_WEB_FALLBACK === true) {
+    location.replace('/play/?challenge=' + encodeURIComponent(token));
+    return;
+  }
   if (!apple && !android) {
     message.textContent = 'Scan this QR with your phone to get Expo Quest. After installing, scan it again inside the app.';
     return;
