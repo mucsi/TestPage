@@ -1,7 +1,11 @@
 /* Fixed destinations only: QR data never supplies a redirect target. */
 (function () {
   const path = location.pathname;
-  if (!path.startsWith('/c/')) return;
+  if (!path.startsWith('/c/')) {
+    const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+    if (path === '/' && ios && window.EXPO_WEB_FALLBACK === true) location.replace('/play/');
+    return;
+  }
   const message = document.getElementById('message');
   const token = path.slice(3);
   if (!/^[A-Za-z0-9_-]{1,200}$/.test(token)) {
