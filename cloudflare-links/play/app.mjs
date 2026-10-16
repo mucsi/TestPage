@@ -1,5 +1,6 @@
 import {read,write,change,remove} from './storage.mjs';
-import './visits.js';
+// Statistics are optional and must never block offline startup.
+import('./visits.js').catch(()=>{});
 import {emptyState,applyOperations,totals,questStatus,enabled,cost,approvalMatches} from './core.mjs';
 const $=s=>document.querySelector(s),cfg=window.WEB_CONFIG;
 const privacyLink=document.createElement('a');privacyLink.href='web-privacy.html';privacyLink.textContent='Web account information';document.querySelector('footer').append(' · ',privacyLink);
