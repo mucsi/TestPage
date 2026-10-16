@@ -50,7 +50,8 @@ async function restoreLocalDraft(){
   // Keep the original SHA: publishing must detect intervening remote edits.
   install(latest.content);dirty();say('Local draft restored. Publishing will check for newer online changes.');return true;
 }
-function dirty(){draftRevision++;changed=true;reviewed='';$('draft-state').textContent='Unsaved draft';saveLocalDraft();}
+function renderStorageUsage(){if(typeof ExpoStorageUsage!=='undefined'&&$('storage-usage'))ExpoStorageUsage.schedule($('storage-usage'),()=>({content,base}));}
+function dirty(){draftRevision++;changed=true;reviewed='';$('draft-state').textContent='Unsaved draft';saveLocalDraft();renderStorageUsage();}
 function source(){const repo=$('repo').value.trim(),branch=$('branch').value.trim();if(!/^[\w.-]+\/[\w.-]+$/.test(repo)||!branch)throw Error('Enter a valid repository and branch.');return {repo,branch};}
 function assertShape(c){if(!c||C.groups.some(g=>!Array.isArray(c[g])||c[g].some(r=>!r||typeof r!=='object'||Array.isArray(r)))||!c.images||typeof c.images!=='object'||Array.isArray(c.images))throw Error('The catalog has invalid collections. The current draft was kept.');}
 function install(c){c=C.migrate(c,base?.rewards||[]);assertShape(c);content=c;group='quests';selection=content.quests[0]?.id||null;previewQuest=selection;previewChallenge=content.challenges[0]?.id;previewReward=content.reward_levels[0]?.id;renderAll();}
@@ -389,7 +390,7 @@ function renderStarSummary(){
   }
   box.append(el('p','muted tiny',`Current draft · enabled items only · shared challenges counted once. Quest bonuses: ${summary.completion} completion + ${summary.perfection} perfection. Totals follow the app’s maximum-star rules; unfinished quests must be completed before publishing.`));
 }
-function renderAll(){if(!content)return;renderStarSummary();renderLibrary();renderBoard();renderEditor();renderPreview();}
+function renderAll(){if(!content)return;renderStorageUsage();renderStarSummary();renderLibrary();renderBoard();renderEditor();renderPreview();}
 async function validate(snapshot=content){const errors=C.validate(snapshot);if(errors.length)throw Error(errors.join('\n'));let pixels=0;for(const data of Object.values(snapshot.images)){const img=new Image();img.src=data;await img.decode();if(!img.width||!img.height||img.width>2048||img.height>2048)throw Error('An image exceeds 2048 × 2048. Replace it with a new upload.');pixels+=img.width*img.height;if(pixels>16*1024*1024)throw Error('Artwork exceeds the offline memory budget. Use smaller images.');}}
 function compactImages(){return C.compactImages(content);}
 function assertDraftRevision(draft,revision){if(content!==draft||draftRevision!==revision)throw Error('The draft changed during validation. Review and publish again.');}
