@@ -36,11 +36,16 @@ export function applyOperations(state,content,ops) {
 }
 export function projection(user,s,content) {
  const row={user_id:user.id,username:user.username,email:user.draws?user.email:'',notifications_allowed:false};
+ row.max_star_gaining_speed=Number(s.max_star_gaining_speed)||0;
  for(const c of content.challenges)if(/^challenge_\d{3}$/.test(c.analytics_key||''))row[c.analytics_key]=!!s.scans[c.id];
  for(const q of content.quests)if(/^quest\d+$/.test(q.analytics_key||''))row[q.analytics_key]=questStatus(q,content,s).complete;
  return row;
 }
 export function approvalMatches(value,claim,userId=claim.user_id) {
  return value==='EQAPPROVE1:'+claim.id+':'+userId+':'+claim.cost;
+}
+export function mergeStarSpeed(state, maximum=0) {
+ if(typeof maximum!=='number'||!Number.isFinite(maximum)||maximum<0)throw Error('Invalid maximum stars/minute.');
+ return {...state,max_star_gaining_speed:Math.max(Number(state.max_star_gaining_speed)||0,maximum)};
 }
 

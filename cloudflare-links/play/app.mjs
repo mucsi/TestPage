@@ -1,4 +1,5 @@
 import {read,write,change,remove} from './storage.mjs';
+import {restoreSpeed,recordSpeed,sampleSpeed} from './star-speed.mjs';
 // Statistics are optional and must never block offline startup.
 import('./visits.js').catch(()=>{});
 import {emptyState,applyOperations,totals,questStatus,enabled,cost,rewardKey,approvalMatches} from './core.mjs';
@@ -6,7 +7,7 @@ const $=s=>document.querySelector(s),cfg=window.WEB_CONFIG;
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const id=()=>crypto.randomUUID().replaceAll('-','');
 let session,feed,record,busy=false,scanControls,lastSync=0,lastSyncError='';
-const initial=()=>({confirmed:emptyState(),queue:[],redemptions:[],claim:null,preference:null});
+const initial=()=>({confirmed:emptyState(),queue:[],redemptions:[],claim:null,preference:null,star_speed:restoreSpeed()});
 const stateKey=()=>`progress:${session.user.id}:${feed.CurrentExpoID}`;
 const message=t=>{$('#status').textContent=t;};
 function show(html){$('#detail').innerHTML=html;if(!$('#popup').open)$('#popup').showModal();$('#popup').scrollTop=0;}
@@ -77,7 +78,7 @@ function renderBottom(){
 }
 async function acceptScan(qr){
  const op={id:id(),qr};let awarded=0;
- record=await change(stateKey(),old=>{old||=initial();const before=applyOperations(old.confirmed,feed.content,old.queue).state;const result=applyOperations(before,feed.content,[op]);if(!result.results[0].ok)throw Error(result.results[0].error);awarded=totals(result.state).stars-totals(before).stars;old.queue.push(op);return old;});
+ record=await change(stateKey(),old=>{old||=initial();const before=applyOperations(old.confirmed,feed.content,old.queue).state;const result=applyOperations(before,feed.content,[op]);if(!result.results[0].ok)throw Error(result.results[0].error);awarded=totals(result.state).stars-totals(before).stars;old.star_speed=recordSpeed(old.star_speed,awarded);old.queue.push(op);return old;});
  close();render();show(`<h2>${awarded?'Challenge completed!':'Already collected'}</h2><p>+${awarded} stars${(record.preference??session.user.draws)?` · +${awarded} daily draw entries`:''}</p><p>Saved on this device. Awards remain pending until synchronized.</p>`);message('Progress saved locally.');setTimeout(()=>sync(),1500);
 }
 async function scanner(receive){
@@ -91,7 +92,7 @@ async function scanner(receive){
 async function sync(action='sync',extra={}){
  if(busy||!session||!feed){lastSyncError='Please wait for synchronization, then try again.';return;}busy=true;lastSyncError='';
  const owner=session.user.id,key=stateKey();
- try{record=await read(key)||initial();const sent=record.queue.slice(0,100);const pref=record.preference;if(pref!==null&&pref!==undefined){if(action!=='sync'&&action!=='preferences')throw Error('Synchronize your saved draw preference first.');action='preferences';extra={...extra,draws:pref};}const result=await call(action,{expo:feed.CurrentExpoID,operations:sent,...extra});
+ try{record=await change(key,old=>{old||=initial();old.star_speed=sampleSpeed(old.star_speed);old.star_speed.maximum=Math.max(old.star_speed.maximum,Number(old.confirmed.max_star_gaining_speed)||0);return old;});const sent=record.queue.slice(0,100);const pref=record.preference;if(pref!==null&&pref!==undefined){if(action!=='sync'&&action!=='preferences')throw Error('Synchronize your saved draw preference first.');action='preferences';extra={...extra,draws:pref};}const result=await call(action,{expo:feed.CurrentExpoID,operations:sent,max_star_gaining_speed:record.star_speed.maximum,...extra});
  if(session?.user.id!==owner||stateKey()!==key)return;
  record=await change(key,old=>{old||=initial();if(result.revision>=(old.revision||0)){old.confirmed=result.state;old.revision=result.revision;}old.redemptions=[...new Map([...old.redemptions,...result.redemptions].map(t=>[t.id,t])).values()];const ack=new Set(result.results.map(r=>r.id));old.queue=old.queue.filter(x=>!ack.has(x.id));if(result.claim)old.claim=result.claim;if(old.claim&&old.redemptions.some(t=>t.id===old.claim.id))old.claim=null;return old;});
  if(action==='preferences')record=await change(key,old=>{if(old.preference===pref)old.preference=null;return old;});session.user=result.user;await write('session',session);lastSync=Date.now();render();const rejected=result.results.filter(x=>!x.ok);message(rejected.length?'Some scans were rejected: '+rejected.map(x=>x.error).join('; '):record.queue.length?'Saved. More scans are waiting to upload.':'Progress synchronized.');return result;
