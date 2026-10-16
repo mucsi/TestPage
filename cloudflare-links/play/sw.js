@@ -1,5 +1,6 @@
-const CACHE='expoquest-web-shell-v2';
+const CACHE='expoquest-web-shell-v3';
 const shell=['./','index.html','style.css','mobile.css','app.mjs','core.mjs','storage.mjs','config.js','qr-vendor.js','manifest.webmanifest','visits.js','web-privacy.html','assets/logo.png','assets/scan.png','assets/explore.png','assets/redeem.png'];
+shell.push('assets/filled-regular.png','assets/empty-regular.png','assets/filled-bonus.png','assets/empty-bonus.png');
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(shell))));
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{

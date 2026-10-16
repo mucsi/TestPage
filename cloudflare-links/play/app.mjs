@@ -1,11 +1,11 @@
 import {read,write,change,remove} from './storage.mjs';
 // Statistics are optional and must never block offline startup.
 import('./visits.js').catch(()=>{});
-import {emptyState,applyOperations,totals,questStatus,enabled,cost,approvalMatches} from './core.mjs';
+import {emptyState,applyOperations,totals,questStatus,enabled,cost,rewardKey,approvalMatches} from './core.mjs';
 const $=s=>document.querySelector(s),cfg=window.WEB_CONFIG;
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const id=()=>crypto.randomUUID().replaceAll('-','');
-let session,feed,record,busy=false,scanControls,lastSync=0;
+let session,feed,record,busy=false,scanControls,lastSync=0,lastSyncError='';
 const initial=()=>({confirmed:emptyState(),queue:[],redemptions:[],claim:null,preference:null});
 const stateKey=()=>`progress:${session.user.id}:${feed.CurrentExpoID}`;
 const message=t=>{$('#status').textContent=t;};
@@ -23,9 +23,21 @@ async function refresh(){
 }
 function image(key){const a=feed.content.images?.[String(key||'').replace(/^asset:\/\//,'')];return a?.path?cfg.contentOrigin+a.path:'';}
 function picture(key){const src=image(key);return src?`<img loading="lazy" src="${esc(src)}" alt="">`:'';}
+function rewardAccess(r,balance,redemptions){
+ const required=Math.max(cost(r),Number(r.stars_required)||0),missing=Math.max(0,required-balance);
+ if(!r.repeatable&&redemptions.some(t=>t.reward_key===rewardKey(r)))return {allowed:false,reason:'Already claimed',missing};
+ if(r.quantity!=null&&Number(r.quantity)<=0)return {allowed:false,reason:'Sold out',missing};
+ return {allowed:missing===0,missing,reason:missing?'You need '+missing+' more '+(missing===1?'star':'stars')+' to claim this reward.':''};
+}
+function questProgressMarkup(q,status){
+ const target=Math.max(0,Number(q.required_stars)||0),count=Math.max(target,status.available);
+ const icons=Array.from({length:count},(_,i)=>`<img src="assets/${i<status.got?'filled':'empty'}-${i>=target?'bonus':'regular'}.png" alt="">`).join('');
+ return `<p class="progress-label">${status.perfect?'Perfected':status.complete?'Complete':'Collect stars'} · ${status.got}/${status.available} stars<br>Complete at ${target} stars</p><div class="quest-stars" role="img" aria-label="${status.got} of ${status.available} stars collected; complete at ${target} stars">${icons}</div>`;
+}
 function rewardCard(r,attribute='data-reward'){
  const daily=r.reward_type==='daily_draw',stock=Number(r.quantity)>50?'Plenty':r.quantity==null?'':esc(r.quantity)+' left';
- return `<button class="card" ${attribute}="${esc(r.id)}"><div class="reward-art">${picture(r.artwork)}</div><div class="card-line"><strong>${esc(r.title)}</strong>${daily?'':`<span class="stock">${stock}</span>`}</div><div class="card-line"><span class="category">${daily?'View prizes':esc(r.category||'Reward')}</span>${daily?'':`<span class="price">${cost(r)} <span class="gold">★</span></span>`}</div></button>`;
+ const access=daily?{allowed:true}:rewardAccess(r,stats().balance,record.redemptions);
+ return `<button class="card" ${attribute}="${esc(r.id)}"><div class="reward-art">${picture(r.artwork)}${access.allowed?'':`<span class="reward-lock" aria-label="${esc(access.reason)}">🔒</span>`}</div><div class="card-line"><strong>${esc(r.title)}</strong>${daily?'':`<span class="stock">${stock}</span>`}</div><div class="card-line"><span class="category">${daily?'View prizes':esc(r.category||'Reward')}</span>${daily?'':`<span class="price">${cost(r)} <span class="gold">★</span></span>`}</div></button>`;
 }
 function viewState(){return applyOperations(record.confirmed,feed.content,record.queue).state;}
 function stats(){return totals(viewState(),record.redemptions.reduce((n,t)=>n+t.cost,0),record.preference??session.user.draws);}
@@ -47,7 +59,7 @@ function render(){
  $('#balance').innerHTML=`<span class="balance-value">${s.balance} <span class="gold">★</span></span>${(record.preference??session.user.draws)?`<small>${s.entries} Entries in<br>the daily draws</small>`:''}`;
  const rewards=(c.reward_levels||[]).filter(enabled);
  const quests=(c.quests||[]).filter(enabled).map((q,i)=>({q,i,status:questStatus(q,c,state)})).sort((a,b)=>(a.status.perfect?2:a.status.complete?1:0)-(b.status.perfect?2:b.status.complete?1:0)||a.i-b.i);
- $('#main').innerHTML=`${record.claim?'<button class="pending" id="pending">Continue pending reward →</button>':''}<h2 class="section-title"><span class="gold">✦</span> REWARDS</h2><div class="rewards">${rewards.map(r=>rewardCard(r)).join('')}</div><h2 class="section-title"><span class="gold">✦</span> QUESTS</h2>${quests.map(({q,status})=>`<section class="quest ${status.perfect?'perfect':status.complete?'complete':''}"><details><summary><div class="quest-overview">${picture(q.artwork)}<div class="copy"><strong>${esc(q.name)}</strong><p>${esc(q.description)}</p><p class="progress-label">${status.perfect?'Perfected':status.complete?'Complete':'In progress'} · ${status.got}/${status.available} stars</p><div class="quest-bonuses">Complete: +${Number(q.completion_bonus_stars)||0} <span class="gold">★</span> &nbsp; Perfect: +${Number(q.perfection_bonus_stars)||0} <span class="gold">★</span></div><span class="expand-label">View challenges <span aria-hidden="true">⌄</span></span></div></div></summary>${(c.challenges||[]).filter(ch=>enabled(ch)&&(q.challenge_ids||[]).includes(ch.id)).map(ch=>`<div class="challenge">${picture(ch.artwork)}<div class="copy"><strong>${esc(ch.title)} ${state.scans[ch.id]?'✓':''}</strong><p>${esc(ch.description)}</p><span class="gold">${ch.stars} ★</span><div class="booth">${esc(ch.booth_number)}</div></div></div>`).join('')}</details></section>`).join('')}`;
+$('#main').innerHTML=`${record.claim?'<button class="pending" id="pending">Continue pending reward →</button>':''}<h2 class="section-title"><span class="gold">✦</span> REWARDS</h2><div class="rewards">${rewards.map(r=>rewardCard(r)).join('')}</div><h2 class="section-title"><span class="gold">✦</span> QUESTS</h2>${quests.map(({q,status})=>`<section class="quest ${status.perfect?'perfect':status.complete?'complete':''}"><details><summary><div class="quest-overview">${picture(q.artwork)}<div class="copy"><strong>${esc(q.name)}</strong><p>${esc(q.description)}</p>${questProgressMarkup(q,status)}<div class="quest-bonuses">Complete: +${Number(q.completion_bonus_stars)||0} <span class="gold">★</span> &nbsp; Perfect: +${Number(q.perfection_bonus_stars)||0} <span class="gold">★</span></div><span class="expand-label">View challenges <span aria-hidden="true">⌄</span></span></div></div></summary>${(c.challenges||[]).filter(ch=>enabled(ch)&&(q.challenge_ids||[]).includes(ch.id)).map(ch=>`<div class="challenge">${picture(ch.artwork)}<div class="copy"><strong>${esc(ch.title)} ${state.scans[ch.id]?'✓':''}</strong><p>${esc(ch.description)}</p><span class="gold">${ch.stars} ★</span><div class="booth">${esc(ch.booth_number)}</div></div></div>`).join('')}</details></section>`).join('')}`;
  if($('#pending'))$('#pending').onclick=claimDialog;
  document.querySelectorAll('[data-reward]').forEach(b=>b.onclick=()=>reward(rewards.find(r=>r.id===b.dataset.reward)));
  document.querySelectorAll('details').forEach(d=>d.ontoggle=()=>{if(d.open)d.scrollIntoView({block:'start',behavior:'smooth'});});
@@ -77,18 +89,26 @@ async function scanner(receive){
  try{const reader=new QRTools.BrowserQRCodeReader();const controls=await reader.decodeFromConstraints({video:{facingMode:'environment'},audio:false},video,result=>{if(result)accept(result.getText());});if(!$('#popup').open||!video.isConnected||handled)controls.stop();else scanControls=controls;}catch{status.textContent='Camera unavailable. Allow camera access in your browser settings, then try again.';retry.hidden=false;}
 }
 async function sync(action='sync',extra={}){
- if(busy||!session||!feed)return;busy=true;
+ if(busy||!session||!feed){lastSyncError='Please wait for synchronization, then try again.';return;}busy=true;lastSyncError='';
  const owner=session.user.id,key=stateKey();
  try{record=await read(key)||initial();const sent=record.queue.slice(0,100);const pref=record.preference;if(pref!==null&&pref!==undefined){if(action!=='sync'&&action!=='preferences')throw Error('Synchronize your saved draw preference first.');action='preferences';extra={...extra,draws:pref};}const result=await call(action,{expo:feed.CurrentExpoID,operations:sent,...extra});
  if(session?.user.id!==owner||stateKey()!==key)return;
  record=await change(key,old=>{old||=initial();if(result.revision>=(old.revision||0)){old.confirmed=result.state;old.revision=result.revision;}old.redemptions=[...new Map([...old.redemptions,...result.redemptions].map(t=>[t.id,t])).values()];const ack=new Set(result.results.map(r=>r.id));old.queue=old.queue.filter(x=>!ack.has(x.id));if(result.claim)old.claim=result.claim;if(old.claim&&old.redemptions.some(t=>t.id===old.claim.id))old.claim=null;return old;});
  if(action==='preferences')record=await change(key,old=>{if(old.preference===pref)old.preference=null;return old;});session.user=result.user;await write('session',session);lastSync=Date.now();render();const rejected=result.results.filter(x=>!x.ok);message(rejected.length?'Some scans were rejected: '+rejected.map(x=>x.error).join('; '):record.queue.length?'Saved. More scans are waiting to upload.':'Progress synchronized.');return result;
- }catch(e){message(e.message+' Local progress remains saved.');}finally{busy=false;}
+ }catch(e){lastSyncError=e.message;message(e.message+' Local progress remains saved.');}finally{busy=false;}
 }
 function reward(r){
  if(r.reward_type==='daily_draw'){show('<h2>Choose your rewards</h2><div class="actions"><button id="daily" class="primary">Daily giveaway prizes</button><button id="market">Star reward market</button></div>');$('#daily').onclick=()=>dailyPrizes(r);$('#market').onclick=market;return;}
- show(`<h2>${esc(r.title)}</h2>${picture(r.artwork)}<p>${esc(r.description)}</p><p>${cost(r)} stars</p><button id="claim" class="primary">Start claim</button><p>Staff approval is required. Connect to the internet to create a claim.</p>`);
- $('#claim').onclick=async()=>{if(record.claim){claimDialog();return;}let draft=await read('claim-draft:'+stateKey());if(!draft||draft.reward!==r.id)draft={id:id(),reward:r.id};await write('claim-draft:'+stateKey(),draft);const b=await sync('claim',draft);if(b?.claim){await remove('claim-draft:'+stateKey());claimDialog();}};
+ const access=rewardAccess(r,stats().balance,record.redemptions);
+ show(`<h2>${esc(r.title)}</h2>${picture(r.artwork)}<p>${esc(r.description)}</p><p>${cost(r)} stars · Your balance: ${stats().balance}</p><p id="claim-message" role="status">${esc(access.reason)}</p><button id="claim" class="primary" ${access.allowed?'':'disabled'}>${access.allowed?'Start claim':access.missing?'Not enough stars':esc(access.reason)}</button><p>Staff approval is required. Connect to the internet to create a claim.</p>`);
+ const button=$('#claim'),notice=$('#claim-message');
+ button.onclick=async()=>{
+  const current=rewardAccess(r,stats().balance,record.redemptions);if(!current.allowed){reward(r);return;}
+  if(record.claim){if(record.claim.reward_key===rewardKey(r))claimDialog();else notice.textContent='You have a pending claim for another reward. Finish it before starting a new one.';return;}
+  button.disabled=true;
+  try{let draft=await read('claim-draft:'+stateKey());if(!draft||draft.reward!==r.id)draft={id:id(),reward:r.id};await write('claim-draft:'+stateKey(),draft);const b=await sync('claim',draft);if(b?.claim){await remove('claim-draft:'+stateKey());claimDialog();}else notice.textContent=lastSyncError||'Could not start claim. Please try again.';}
+  catch(e){notice.textContent=e.message;}finally{if(button.isConnected)button.disabled=!rewardAccess(r,stats().balance,record.redemptions).allowed;}
+ };
 }
 function dailyPrizes(r){show(`<h2>Daily prizes</h2>${(record.preference??session.user.draws)?`<p>You have ${stats().entries} entries in the daily draws.</p>`:'<p>Add your email to daily draws in Account to participate.</p>'}<ul class="prizes">${(r.draw_prizes||feed.content.email_draw?.draw_prizes||[]).map(p=>`<li>${esc(p)}</li>`).join('')}</ul><p><strong>Daily draws will happen at the LASEROX booth 3B215.</strong></p><p>${esc(r.description)}</p><h3>How entries work</h3><p>Providing your email gives one entry. Every earned star adds one entry, including quest bonuses. Spending stars does not reduce entries. Entries accumulate throughout the event. Each entry is included in the draw pool; a winner is removed for the rest of that day and included again the following day.</p><p class="rules">${esc(feed.content.app_text?.draw_eligibility||'Ask LASEROX staff about the current event schedule and eligibility.')}</p><p>Organized by Laserox Design Kft. Apple and Google are not involved in these draws.</p><a href="/support" target="_blank" rel="noopener">Contact and event support</a>`);}
 function market(){const list=feed.content.reward_levels.filter(r=>enabled(r)&&r.reward_type!=='daily_draw');show(`<h2>Reward market</h2><p class="entry-total">${stats().balance} <span class="gold">★</span> available</p><div class="market">${list.map(r=>rewardCard(r,'data-market')).join('')}</div>`);document.querySelectorAll('[data-market]').forEach(b=>b.onclick=()=>reward(list.find(r=>r.id===b.dataset.market)));}
@@ -98,6 +118,9 @@ function help(){
 }
 function claimDialog(){
  if(!record.claim){show('<h2>Reward collected</h2><p>Your staff-approved claim is synchronized.</p>');return;}
+ const pendingReward=feed.content.reward_levels.find(r=>rewardKey(r)===record.claim.reward_key);
+ const needed=Math.max(record.claim.cost,Number(pendingReward?.stars_required)||0);
+ if(stats().balance<needed){show(`<h2>Not enough stars</h2><p>You need ${needed-stats().balance} more stars before you can continue this claim.</p><button id="check" class="primary">Check approval status</button>`);$('#check').onclick=async()=>{await sync('claim-status');claimDialog();};return;}
  show('<h2>Show this QR to staff</h2><canvas id="claimqr"></canvas><p>After approval, scan the code on the staff phone. Offline approvals remain pending until staff reconnect.</p><button id="approval" class="primary">Scan staff approval</button><button id="check">Check approval</button>');
  QRTools.toCanvas($('#claimqr'),'EQCLAIM1:'+JSON.stringify(record.claim),{width:380,margin:4,errorCorrectionLevel:'M'}).catch(e=>message(e.message));
  $('#check').onclick=async()=>{await sync('claim-status');claimDialog();};

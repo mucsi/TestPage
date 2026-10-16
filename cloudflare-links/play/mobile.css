@@ -75,4 +75,7 @@ form{background:#f5f7fa;margin-top:14px}
 .rewards .card-line{height:25px;margin-top:2px}
 .rewards .card strong,.rewards .category{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rewards .stock,.rewards .price{flex-shrink:0}
+.reward-art{position:relative}.reward-lock{position:absolute;right:3px;bottom:3px;font-size:22px;background:#fff;border-radius:8px;padding:2px}
+.quest-stars{display:flex;flex-wrap:wrap;gap:2px;margin:7px 0}.quest-stars img{width:22px;height:22px;object-fit:contain}
+#claim:disabled{background:#e7eaf0;color:#6f7280;opacity:1;cursor:not-allowed}#claim-message:not(:empty){padding:12px;background:#fff3dc;border-radius:12px}
 @media(min-width:700px){.promos img{height:130px}.promos{justify-content:safe center}}
