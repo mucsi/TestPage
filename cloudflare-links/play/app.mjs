@@ -3,7 +3,6 @@ import {read,write,change,remove} from './storage.mjs';
 import('./visits.js').catch(()=>{});
 import {emptyState,applyOperations,totals,questStatus,enabled,cost,approvalMatches} from './core.mjs';
 const $=s=>document.querySelector(s),cfg=window.WEB_CONFIG;
-const privacyLink=document.createElement('a');privacyLink.href='web-privacy.html';privacyLink.textContent='Web account information';document.querySelector('footer').append(' · ',privacyLink);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const id=()=>crypto.randomUUID().replaceAll('-','');
 let session,feed,record,busy=false,scanControls,lastSync=0;
@@ -24,6 +23,10 @@ async function refresh(){
 }
 function image(key){const a=feed.content.images?.[String(key||'').replace(/^asset:\/\//,'')];return a?.path?cfg.contentOrigin+a.path:'';}
 function picture(key){const src=image(key);return src?`<img loading="lazy" src="${esc(src)}" alt="">`:'';}
+function rewardCard(r,attribute='data-reward'){
+ const daily=r.reward_type==='daily_draw',stock=Number(r.quantity)>50?'Plenty':r.quantity==null?'':esc(r.quantity)+' left';
+ return `<button class="card" ${attribute}="${esc(r.id)}"><div class="reward-art">${picture(r.artwork)}</div><div class="card-line"><strong>${esc(r.title)}</strong>${daily?'':`<span class="stock">${stock}</span>`}</div><div class="card-line"><span class="category">${daily?'View prizes':esc(r.category||'Reward')}</span>${daily?'':`<span class="price">${cost(r)} <span class="gold">★</span></span>`}</div></button>`;
+}
 function viewState(){return applyOperations(record.confirmed,feed.content,record.queue).state;}
 function stats(){return totals(viewState(),record.redemptions.reduce((n,t)=>n+t.cost,0),record.preference??session.user.draws);}
 async function content(){
@@ -31,19 +34,34 @@ async function content(){
  try{const r=await fetch(cfg.contentOrigin+'/content/manifest.json',{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error();const m=await r.json();if(m.ExpoResetInProgress)throw Error();if(feed?._version!==m.version){if(!/^\/content\/catalogs\/[a-f0-9]{64}\.json$/.test(m.catalog))throw Error();const cr=await fetch(cfg.contentOrigin+m.catalog,{signal:AbortSignal.timeout(12000)});if(!cr.ok)throw Error();const f=await cr.json();if(f.ExpoResetInProgress||f.CurrentExpoID!==m.CurrentExpoID)throw Error();feed={...f,_version:m.version};await write('catalog',feed);}}catch{if(!feed)throw Error('Connect to the internet to download the event for the first time.');message('Using saved event content. New content will load when connected.');}
 }
 function auth(mode='login'){
+ document.querySelector('#bottom-tray')?.remove();
+ document.body.classList.remove('playing');$('#scan-header').hidden=true;$('#help').hidden=true;
  $('#balance').textContent='';$('#main').innerHTML=`<form id="auth"><h2>${mode==='register'?'Start your adventure':mode==='recover'?'Recover your account':'Welcome back'}</h2><p>You need to be at the expo to complete challenges and collect prizes. This web account is separate from the mobile app.</p>${mode==='register'?'<label>Name<input name="username" required minlength="2" maxlength="32" autocomplete="nickname"></label>':''}<label>Email<input name="email" type="email" required autocomplete="email"></label>${mode==='recover'?'<label>Recovery code<input name="recovery" required autocomplete="off"></label>':''}<label>${mode==='recover'?'New password':'Password'}<input name="password" type="password" required minlength="12" maxlength="128" autocomplete="${mode==='login'?'current-password':'new-password'}"></label>${mode==='register'?'<label><input name="draws" type="checkbox"> Use my email for daily draws and prize contact. For children, a parent or guardian provides their own email.</label><p class="muted">We do not send verification emails. Check your address carefully. Save the recovery code shown after registration.</p>':''}<button class="primary">${mode==='register'?'Create account':mode==='recover'?'Reset password':'Sign in'}</button><div class="actions"><button type="button" data-auth="${mode==='login'?'register':'login'}">${mode==='login'?'Create account':'Sign in'}</button><button type="button" data-auth="recover">Forgot password</button></div><p><a href="/privacy" target="_blank" rel="noopener">Privacy policy</a></p></form>`;
  document.querySelectorAll('[data-auth]').forEach(b=>b.onclick=()=>auth(b.dataset.auth));
  $('#auth').onsubmit=async e=>{e.preventDefault();const form=e.currentTarget,button=form.querySelector('.primary');button.disabled=true;try{const d=Object.fromEntries(new FormData(form));d.draws=d.draws==='on';const b=await call(mode,d,false);if(b.session){session=b.session;await write('session',session);await start();}if(b.recovery)show(`<h2>Save your recovery code</h2><p>Keep this somewhere private, outside this browser. Without your password or this code, you may lose access. No recovery emails are sent.</p><p class="notice">${esc(b.recovery)}</p>`);if(mode==='recover'){auth('login');message('Password changed. Save the new recovery code and sign in.');}}catch(e){message(e.message);}finally{button.disabled=false;}};
 }
 function render(){
  if(!session||!feed||!record)return;const s=stats(),state=viewState(),c=feed.content;
- $('#balance').innerHTML=`${s.balance} ⭐${(record.preference??session.user.draws)?`<br><small>${s.entries} entries in daily draws</small>`:''}`;
+ document.body.classList.add('playing');$('#scan-header').hidden=false;$('#help').hidden=false;
+ $('#scan-header').onclick=()=>scanner(acceptScan);$('#help').onclick=help;
+ $('#balance').innerHTML=`<span class="balance-value">${s.balance} <span class="gold">★</span></span>${(record.preference??session.user.draws)?`<small>${s.entries} Entries in<br>the daily draws</small>`:''}`;
  const rewards=(c.reward_levels||[]).filter(enabled);
  const quests=(c.quests||[]).filter(enabled).map((q,i)=>({q,i,status:questStatus(q,c,state)})).sort((a,b)=>(a.status.perfect?2:a.status.complete?1:0)-(b.status.perfect?2:b.status.complete?1:0)||a.i-b.i);
- $('#main').innerHTML=`<div class="actions"><button class="primary" id="scan">Scan challenge</button><button id="sync">Sync now</button><button id="account">Account</button>${record.claim?'<button id="pending">Pending reward</button>':''}</div><h2>✨ Rewards</h2><div class="rewards">${rewards.map(r=>`<button class="card" data-reward="${esc(r.id)}">${picture(r.artwork)}<strong>${esc(r.title)}</strong><small>${r.reward_type==='daily_draw'?'View prizes':`${cost(r)} ⭐ · ${Number(r.quantity)>50?'Plenty':esc(r.quantity??'')+' left'}`}</small></button>`).join('')}</div><h2>✨ Quests</h2>${quests.map(({q,status})=>`<section class="quest"><details><summary>${esc(q.name)} ${status.perfect?'✓ Perfected':status.complete?'✓ Completed':''}</summary><p>${esc(q.description)}</p>${(c.challenges||[]).filter(ch=>enabled(ch)&&(q.challenge_ids||[]).includes(ch.id)).map(ch=>`<div class="challenge">${picture(ch.artwork)}<div class="copy"><strong>${esc(ch.title)} ${state.scans[ch.id]?'✓':''}</strong><p>${esc(ch.description)}</p><span>${ch.stars} ⭐</span><div class="booth">${esc(ch.booth_number)}</div></div></div>`).join('')}</details></section>`).join('')}`;
- $('#scan').onclick=()=>scanner(acceptScan);$('#sync').onclick=()=>sync();$('#account').onclick=account;if($('#pending'))$('#pending').onclick=claimDialog;
+ $('#main').innerHTML=`${record.claim?'<button class="pending" id="pending">Continue pending reward →</button>':''}<h2 class="section-title"><span class="gold">✦</span> REWARDS</h2><div class="rewards">${rewards.map(r=>rewardCard(r)).join('')}</div><h2 class="section-title"><span class="gold">✦</span> QUESTS</h2>${quests.map(({q,status})=>`<section class="quest ${status.perfect?'perfect':status.complete?'complete':''}"><details><summary><div class="quest-overview">${picture(q.artwork)}<div class="copy"><strong>${esc(q.name)}</strong><p>${esc(q.description)}</p><p class="progress-label">${status.perfect?'Perfected':status.complete?'Complete':'In progress'} · ${status.got}/${status.available} stars</p><div class="quest-bonuses">Complete: +${Number(q.completion_bonus_stars)||0} <span class="gold">★</span> &nbsp; Perfect: +${Number(q.perfection_bonus_stars)||0} <span class="gold">★</span></div><span class="expand-label">View challenges <span aria-hidden="true">⌄</span></span></div></div></summary>${(c.challenges||[]).filter(ch=>enabled(ch)&&(q.challenge_ids||[]).includes(ch.id)).map(ch=>`<div class="challenge">${picture(ch.artwork)}<div class="copy"><strong>${esc(ch.title)} ${state.scans[ch.id]?'✓':''}</strong><p>${esc(ch.description)}</p><span class="gold">${ch.stars} ★</span><div class="booth">${esc(ch.booth_number)}</div></div></div>`).join('')}</details></section>`).join('')}`;
+ if($('#pending'))$('#pending').onclick=claimDialog;
  document.querySelectorAll('[data-reward]').forEach(b=>b.onclick=()=>reward(rewards.find(r=>r.id===b.dataset.reward)));
  document.querySelectorAll('details').forEach(d=>d.ontoggle=()=>{if(d.open)d.scrollIntoView({block:'start',behavior:'smooth'});});
+ renderBottom();
+}
+function renderBottom(){
+ const promos=(feed.content.partners||[]).filter(p=>enabled(p)&&p.show_banner!==false&&image(p.artwork));
+ let tray=$('#bottom-tray');if(!tray){tray=document.createElement('aside');tray.id='bottom-tray';document.body.append(tray);}
+ const signature=JSON.stringify([promos,record.preference??session.user.draws]);
+ if(tray.dataset.signature===signature)return;tray.dataset.signature=signature;
+ tray.innerHTML=`${(record.preference??session.user.draws)?'':'<button id="join-draws" class="primary">Add email to the daily draws</button>'}<div class="promos" aria-label="Expo promotions">${promos.map((p,i)=>`<button data-promo="${i}" aria-label="${esc(p.name||'Expo promotion')}">${picture(p.artwork)}</button>`).join('')}</div>`;
+ document.body.classList.toggle('has-promos',promos.length>0);document.body.classList.toggle('needs-email',!(record.preference??session.user.draws));
+ if($('#join-draws'))$('#join-draws').onclick=account;
+ tray.querySelectorAll('[data-promo]').forEach(b=>b.onclick=()=>{const p=promos[Number(b.dataset.promo)];show(`<h2>${esc(p.banner_title||p.name)}</h2>${picture(p.artwork)}<p>${esc(p.banner_message||p.hint||'')}</p><p class="booth">${esc(p.booth||'')}</p>`);});
 }
 async function acceptScan(qr){
  const op={id:id(),qr};let awarded=0;
@@ -51,10 +69,12 @@ async function acceptScan(qr){
  close();render();show(`<h2>${awarded?'Challenge completed!':'Already collected'}</h2><p>+${awarded} stars${(record.preference??session.user.draws)?` · +${awarded} daily draw entries`:''}</p><p>Saved on this device. Awards remain pending until synchronized.</p>`);message('Progress saved locally.');setTimeout(()=>sync(),1500);
 }
 async function scanner(receive){
- show('<h2>Scan QR code</h2><video id="camera" muted playsinline></video><p>Allow camera access, then point at the QR code.</p><details><summary>Paste a QR link instead</summary><input id="qrtext" aria-label="QR content"><button id="useqr">Use code</button></details>');
- let handled=false;const accept=async text=>{if(handled)return;handled=true;scanControls?.stop();try{await receive(text);}catch(e){handled=false;message(e.message);}};
- $('#useqr').onclick=()=>accept($('#qrtext').value.trim());
- try{const reader=new QRTools.BrowserQRCodeReader();const controls=await reader.decodeFromConstraints({video:{facingMode:'environment'},audio:false},$('#camera'),result=>{if(result)accept(result.getText());});if(!$('#popup').open||handled)controls.stop();else scanControls=controls;}catch{message('Camera unavailable. You can paste the QR link instead.');}
+ scanControls?.stop();
+ show('<h2>Scan QR code</h2><video id="camera" muted playsinline></video><p id="camera-status" role="status">Allow camera access, then point at the QR code.</p><button id="camera-retry" hidden class="primary">Try camera again</button>');
+ const video=$('#camera'),status=$('#camera-status'),retry=$('#camera-retry');
+ retry.onclick=()=>scanner(receive);
+ let handled=false;const accept=async text=>{if(handled)return;handled=true;scanControls?.stop();try{await receive(text);}catch(e){status.textContent=e.message;retry.hidden=false;}};
+ try{const reader=new QRTools.BrowserQRCodeReader();const controls=await reader.decodeFromConstraints({video:{facingMode:'environment'},audio:false},video,result=>{if(result)accept(result.getText());});if(!$('#popup').open||!video.isConnected||handled)controls.stop();else scanControls=controls;}catch{status.textContent='Camera unavailable. Allow camera access in your browser settings, then try again.';retry.hidden=false;}
 }
 async function sync(action='sync',extra={}){
  if(busy||!session||!feed)return;busy=true;
@@ -71,7 +91,11 @@ function reward(r){
  $('#claim').onclick=async()=>{if(record.claim){claimDialog();return;}let draft=await read('claim-draft:'+stateKey());if(!draft||draft.reward!==r.id)draft={id:id(),reward:r.id};await write('claim-draft:'+stateKey(),draft);const b=await sync('claim',draft);if(b?.claim){await remove('claim-draft:'+stateKey());claimDialog();}};
 }
 function dailyPrizes(r){show(`<h2>Daily prizes</h2>${(record.preference??session.user.draws)?`<p>You have ${stats().entries} entries in the daily draws.</p>`:'<p>Add your email to daily draws in Account to participate.</p>'}<ul class="prizes">${(r.draw_prizes||feed.content.email_draw?.draw_prizes||[]).map(p=>`<li>${esc(p)}</li>`).join('')}</ul><p><strong>Daily draws will happen at the LASEROX booth 3B215.</strong></p><p>${esc(r.description)}</p><h3>How entries work</h3><p>Providing your email gives one entry. Every earned star adds one entry, including quest bonuses. Spending stars does not reduce entries. Entries accumulate throughout the event. Each entry is included in the draw pool; a winner is removed for the rest of that day and included again the following day.</p><p class="rules">${esc(feed.content.app_text?.draw_eligibility||'Ask LASEROX staff about the current event schedule and eligibility.')}</p><p>Organized by Laserox Design Kft. Apple and Google are not involved in these draws.</p><a href="/support" target="_blank" rel="noopener">Contact and event support</a>`);}
-function market(){const list=feed.content.reward_levels.filter(r=>enabled(r)&&r.reward_type!=='daily_draw');show(`<h2>Reward market</h2><p>${stats().balance} stars available</p><div class="market">${list.map(r=>`<button class="card" data-market="${esc(r.id)}">${picture(r.artwork)}<strong>${esc(r.title)}</strong><small>${cost(r)} ⭐</small></button>`).join('')}</div>`);document.querySelectorAll('[data-market]').forEach(b=>b.onclick=()=>reward(list.find(r=>r.id===b.dataset.market)));}
+function market(){const list=feed.content.reward_levels.filter(r=>enabled(r)&&r.reward_type!=='daily_draw');show(`<h2>Reward market</h2><p class="entry-total">${stats().balance} <span class="gold">★</span> available</p><div class="market">${list.map(r=>rewardCard(r,'data-market')).join('')}</div>`);document.querySelectorAll('[data-market]').forEach(b=>b.onclick=()=>reward(list.find(r=>r.id===b.dataset.market)));}
+function help(){
+ show('<h2>How to play</h2><div class="help-step"><img src="assets/scan.png" alt=""><div><h3>Explore & scan</h3><p>Complete a challenge at the expo, then scan its QR code.</p></div></div><div class="help-step"><img src="assets/explore.png" alt=""><div><h3>Collect stars</h3><p>Earn stars and quest bonuses. Join daily draws to earn entries too.</p></div></div><div class="help-step"><img src="assets/redeem.png" alt=""><div><h3>Redeem at LASEROX</h3><p>Choose a reward, show staff your QR, then scan their approval.</p></div></div><div class="help-actions"><button id="account">My account & daily draws</button><button id="sync">Sync progress now</button><a href="/privacy" target="_blank" rel="noopener">Privacy policy</a><a href="web-privacy.html" target="_blank" rel="noopener">Web account information</a><a href="/delete-data" target="_blank" rel="noopener">Request data deletion</a><button class="primary" id="got-it">Got it!</button></div>');
+ $('#account').onclick=account;$('#sync').onclick=async()=>{await sync();close();};$('#got-it').onclick=close;
+}
 function claimDialog(){
  if(!record.claim){show('<h2>Reward collected</h2><p>Your staff-approved claim is synchronized.</p>');return;}
  show('<h2>Show this QR to staff</h2><canvas id="claimqr"></canvas><p>After approval, scan the code on the staff phone. Offline approvals remain pending until staff reconnect.</p><button id="approval" class="primary">Scan staff approval</button><button id="check">Check approval</button>');
