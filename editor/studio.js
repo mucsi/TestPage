@@ -7,8 +7,9 @@ const say=t=>$('status').textContent=t;
 const guard=fn=>async(...args)=>{try{await fn(...args);}catch(e){say(e.message||'Something went wrong. Please try again.');}};
 const title=r=>r.title||r.name||r.id;
 const boothLabel=r=>String(r.booth_number||'').trim()||'Not set';
-const challengeLabel=r=>`${title(r)} · ${boothLabel(r)}`;
-function challengeName(r){const name=el('span','name');name.append(document.createTextNode(title(r)+' · '),el('strong','challenge-booth',boothLabel(r)));return name;}
+const challengeLabel=r=>`${title(r)} · ${boothLabel(r)} · ID: ${r.id}`;
+const challengeId=r=>el('small','challenge-id',`ID: ${r.id}`);
+function challengeName(r){const name=el('span','name');name.append(document.createTextNode(title(r)+' · '),el('strong','challenge-booth',boothLabel(r)),challengeId(r));return name;}
 function challengeStatus(r){const active=r.enabled!==false,b=button(active?'Enabled':'Disabled',()=>{r.enabled=r.enabled===false;dirty();renderAll();});b.setAttribute('aria-label','Enable challenge '+challengeLabel(r));b.setAttribute('aria-pressed',String(active));b.title='Click to '+(active?'disable':'enable')+' this challenge in every quest. Publish to update the app.';return b;}
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;}
 function button(text,fn,cls='secondary'){const b=el('button',cls,text);b.type='button';b.onclick=guard(fn);return b;}
@@ -94,7 +95,7 @@ function draggable(node,id){
     const clear=()=>{ghost?.remove();target?.classList.remove('drop-over');node.onpointermove=null;node.onpointerup=null;node.onpointercancel=null;};
     node.onpointermove=move=>{
       if(!ghost&&Math.hypot(move.clientX-startX,move.clientY-startY)<6)return;
-      move.preventDefault();if(!ghost){ghost=el('div','drag-ghost',challengeLabel(content.challenges.find(r=>r.id===id)));document.body.append(ghost);}
+      move.preventDefault();if(!ghost){ghost=el('div','drag-ghost');ghost.append(challengeName(content.challenges.find(r=>r.id===id)));document.body.append(ghost);}
       ghost.style.left=move.clientX+12+'px';ghost.style.top=move.clientY+12+'px';target?.classList.remove('drop-over');target=document.elementFromPoint(move.clientX,move.clientY)?.closest('[data-quest-id]');target?.classList.add('drop-over');
     };
     node.onpointerup=up=>{const drop=document.elementFromPoint(up.clientX,up.clientY)?.closest('[data-quest-id]');const moved=!!ghost;clear();if(moved&&drop){try{M.assign(content,drop.dataset.questId,id,drop.dataset.beforeId||null);dirty();previewQuest=drop.dataset.questId;renderAll();say('Challenge added to this quest. Other quests keep their copy; completion is shared.');}catch(error){say(error.message);}}};
@@ -107,7 +108,7 @@ function renderLibrary(){
   for(const r of content.challenges.filter(r=>(challengeLabel(r)+' '+r.id).toLocaleLowerCase().includes(query))){
     const card=el('div','library-card');card.setAttribute('aria-current',String(group==='challenges'&&r.id===selection));draggable(card,r.id);
     const copy=el('div','copy'),used=content.quests.filter(q=>q.challenge_ids.includes(r.id)).length;
-    copy.append(el('strong','',title(r)),el('strong','challenge-booth',boothLabel(r)),el('small','',`${r.stars} stars · ${used} quests`),challengeStatus(r));
+    copy.append(el('strong','',title(r)),challengeId(r),el('strong','challenge-booth',boothLabel(r)),el('small','',`${r.stars} stars · ${used} quests`),challengeStatus(r));
     card.append(el('span','handle','⠿'),picture(r),copy,button('Edit',()=>choose('challenges',r.id),'plain'));
     box.append(card);
   }
@@ -194,6 +195,7 @@ function renderEditor(){
   const box=$('editor');box.replaceChildren();const row=selected();if(!row){box.append(el('div','empty','Choose an item to edit, or add a new one.'));return;}
   const card=el('div','editor-card'),heading=el('div','section-title');heading.append(el('h2','',`Edit ${singular[group]}`));card.append(heading);
   field(card,row,['quests','partners'].includes(group)?'name':'title','Name');
+  if(group==='challenges')card.append(challengeId(row));
   const dailyDraw=group==='reward_levels'&&row.reward_type==='daily_draw';
   if(group==='reward_levels'){
     const label=el('label','','Reward type'),select=el('select');
